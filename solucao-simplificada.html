@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Incorporação Simplificada - Soren Forms</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #4f46e5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .form-container {
+            margin-top: 30px;
+            min-height: 600px;
+        }
+        .options-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        button {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover {
+            background-color: #4338ca;
+        }
+        .code-panel {
+            background-color: #f4f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #e2e2e2;
+        }
+        pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-size: 14px;
+            color: #333;
+        }
+        iframe {
+            border: none;
+            width: 100%;
+            height: 700px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Solução Simplificada de Incorporação - Soren Forms</h1>
+    
+    <div class="container">
+        <h2>Configurações</h2>
+        <div class="options-panel">
+            <div>
+                <label for="form-id">ID do Formulário:</label>
+                <input type="text" id="form-id" value="abbc1d16-9672-4681-a476-8971b640246d">
+                
+                <label for="tenant-id">ID do Tenant (opcional):</label>
+                <input type="text" id="tenant-id" value="28bdc7a7-a678-44e3-a8a9-5b4dfbb2cc74">
+            </div>
+            <div>
+                <label for="server">Endereço do Servidor:</label>
+                <select id="server">
+                    <option value="http://localhost:3000">localhost:3000</option>
+                    <option value="http://localhost:3001">localhost:3001</option>
+                    <option value="http://localhost:3002" selected>localhost:3002</option>
+                    <option value="http://localhost:5173">localhost:5173</option>
+                    <option value="http://localhost:5174">localhost:5174</option>
+                </select>
+                
+                <button id="update-form">Atualizar Formulário</button>
+            </div>
+        </div>
+        
+        <div class="code-panel">
+            <pre id="embed-code"><!-- O código de incorporação será mostrado aqui --></pre>
+        </div>
+    </div>
+
+    <div class="container form-container">
+        <h2>Formulário Incorporado:</h2>
+        <div id="form-container">
+            <!-- O iframe será carregado aqui -->
+        </div>
+    </div>
+
+    <script>
+        // Elementos DOM
+        const formIdInput = document.getElementById('form-id');
+        const tenantIdInput = document.getElementById('tenant-id');
+        const serverSelect = document.getElementById('server');
+        const updateButton = document.getElementById('update-form');
+        const embedCodeEl = document.getElementById('embed-code');
+        const formContainer = document.getElementById('form-container');
+        
+        // Função para atualizar o formulário
+        function updateForm() {
+            const formId = formIdInput.value.trim();
+            const tenantId = tenantIdInput.value.trim();
+            const server = serverSelect.value;
+            
+            if (!formId) {
+                alert('Por favor, informe o ID do formulário');
+                return;
+            }
+            
+            // Construir a URL do formulário
+            let formUrl = `${server}/form/${formId}?embed=true`;
+            if (tenantId) {
+                formUrl += `&tenant_id=${tenantId}`;
+            }
+            
+            // Gerar código de incorporação
+            const embedCode = `<iframe 
+  src="${formUrl}" 
+  style="width: 100%; height: 650px; border: none; border-radius: 8px;" 
+  title="Formulário Soren"
+  scrolling="no">
+</iframe>`;
+            
+            // Atualizar o código mostrado
+            embedCodeEl.textContent = embedCode;
+            
+            // Atualizar o iframe
+            formContainer.innerHTML = `<iframe src="${formUrl}" style="width: 100%; height: 700px;"></iframe>`;
+        }
+        
+        // Registrar evento
+        updateButton.addEventListener('click', updateForm);
+        
+        // Inicializar
+        updateForm();
+    </script>
+</body>
+</html> 

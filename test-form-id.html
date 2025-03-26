@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de ID do Formulário</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1"></script>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #111827;
+            color: #e5e7eb;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #6366f1;
+        }
+        button {
+            background-color: #4f46e5;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        pre {
+            background-color: #1f2937;
+            padding: 15px;
+            border-radius: 6px;
+            overflow: auto;
+            margin-top: 20px;
+        }
+        .error {
+            color: #ef4444;
+        }
+        .success {
+            color: #10b981;
+        }
+        input {
+            padding: 10px;
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            border-radius: 6px;
+            color: #e5e7eb;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teste de ID do Formulário no Supabase</h1>
+    <p>Este script verifica se um ID de formulário existe no banco de dados Supabase.</p>
+    
+    <div>
+        <label for="form-id">ID do Formulário:</label>
+        <input type="text" id="form-id" value="abbc1d16-9672-4681-a476-8971b640246d" />
+        <button id="check-button">Verificar ID</button>
+    </div>
+    
+    <pre id="results">Os resultados aparecerão aqui...</pre>
+
+    <script>
+        // Configuração do Supabase
+        const SUPABASE_URL = 'https://pdlsbcxkbszahcmaluds.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkbHNiY3hrYnN6YWhjbWFsdWRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk1NjM5NTcsImV4cCI6MjA1NTEzOTk1N30.m12oP25YLYcYtR4lZTiYDnKmRgjyp2Qx2wMX8EvoLwU';
+        
+        // Criar cliente Supabase
+        const createClient = window.supabase.createClient;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        document.getElementById('check-button').addEventListener('click', async () => {
+            const formId = document.getElementById('form-id').value.trim();
+            const resultsElem = document.getElementById('results');
+            
+            if (!formId) {
+                resultsElem.innerHTML = '<span class="error">Por favor, insira um ID de formulário.</span>';
+                return;
+            }
+            
+            resultsElem.innerHTML = 'Verificando...';
+            
+            try {
+                // Teste 1: Verificar com maybeSingle()
+                const { data: dataMaybe, error: errorMaybe } = await supabase
+                    .from('forms')
+                    .select('*')
+                    .eq('id', formId)
+                    .maybeSingle();
+                
+                // Teste 2: Verificar sem filtro de tenant e com less strict matching
+                const { data: dataAll, error: errorAll } = await supabase
+                    .from('forms')
+                    .select('id, name, tenant_id')
+                    .filter('id', 'ilike', `%${formId}%`);
+                
+                // Teste 3: Verificar UUIDs semelhantes
+                const idBase = formId.substring(0, 8);
+                const { data: dataSimilar, error: errorSimilar } = await supabase
+                    .from('forms')
+                    .select('id, name, tenant_id')
+                    .filter('id', 'ilike', `${idBase}%`);
+                
+                const resultsHTML = `
+<strong>Resultado com .maybeSingle() e eq exato:</strong>
+${errorMaybe ? `<span class="error">Erro: ${errorMaybe.message}</span>` : ''}
+${dataMaybe ? `<span class="success">Encontrado: ${JSON.stringify(dataMaybe, null, 2)}</span>` : '<span class="error">Não encontrado</span>'}
+
+<strong>Resultado com busca parcial:</strong>
+${errorAll ? `<span class="error">Erro: ${errorAll.message}</span>` : ''}
+${dataAll && dataAll.length > 0 ? `<span class="success">Encontrados ${dataAll.length} formulários: ${JSON.stringify(dataAll, null, 2)}</span>` : '<span class="error">Nenhum formulário encontrado</span>'}
+
+<strong>Formulários com ID semelhante:</strong>
+${errorSimilar ? `<span class="error">Erro: ${errorSimilar.message}</span>` : ''}
+${dataSimilar && dataSimilar.length > 0 ? `<span class="success">Encontrados ${dataSimilar.length} formulários: ${JSON.stringify(dataSimilar, null, 2)}</span>` : '<span class="error">Nenhum formulário encontrado com ID semelhante</span>'}
+`;
+                
+                resultsElem.innerHTML = resultsHTML;
+            } catch (error) {
+                resultsElem.innerHTML = `<span class="error">Erro: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html> 
