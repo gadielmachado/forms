@@ -1238,8 +1238,18 @@ Instruções Adicionais:
 `;
       }
 
+      // Determinar URL da API com base no ambiente
+      let apiBaseUrl = '/api/openai';  // URL padrão
+
+      // Para desenvolvimento local, use a URL do servidor backend
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        apiBaseUrl = 'http://localhost:3001/api/openai';
+      }
+
+      console.log("Chamando API em:", apiBaseUrl);
+
       // Nova chamada à API através do backend
-      const response = await fetch("http://localhost:3001/api/openai", {
+      const response = await fetch(apiBaseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
