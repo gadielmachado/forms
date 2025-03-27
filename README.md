@@ -67,3 +67,50 @@ Simply open [Lovable](https://lovable.dev/projects/539cd3cb-461b-4cec-b542-6190f
 ## I want to use a custom domain - is that possible?
 
 We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+
+# Soren Forms
+
+Plataforma de criação de formulários e geração de documentos com IA.
+
+## Configuração
+
+1. Clone o repositório
+2. Instale as dependências:
+```bash
+npm install
+```
+
+3. Configure as variáveis de ambiente:
+   - Copie o arquivo `.env.example` para `.env` na raiz do projeto
+   - Copie o arquivo `backend/.env.example` para `backend/.env` (ou crie o arquivo)
+   - Adicione sua chave da API OpenAI em ambos os arquivos
+
+4. Configure o backend:
+```bash
+cd backend
+npm install
+```
+
+## Executando o Projeto
+
+Para executar tanto o frontend quanto o backend:
+```bash
+npm run start
+```
+
+Para executar apenas o frontend:
+```bash
+npm run dev
+```
+
+Para executar apenas o backend:
+```bash
+npm run backend
+```
+
+## Funcionalidades
+
+- Criação de formulários dinâmicos
+- Coleta de respostas
+- Geração de relatórios e propostas com IA
+- Exportação de documentos em vários formatos

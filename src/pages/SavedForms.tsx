@@ -1239,7 +1239,7 @@ Instruções Adicionais:
       }
 
       // Nova chamada à API através do backend
-      const response = await fetch("/api/openai", {
+      const response = await fetch("http://localhost:3001/api/openai", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
