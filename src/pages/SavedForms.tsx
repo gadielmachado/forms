@@ -250,16 +250,27 @@ export default function SavedForms() {
     // Log para debug
     console.log("Visualizando formulário com ID:", form.id);
     
+    // Função mais robusta para detectar dispositivos móveis
+    const isMobileDevice = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      
+      // Verificar se é um dispositivo móvel pelo user agent
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      
+      // Verificar se é um dispositivo móvel pelo tamanho da tela
+      const isMobileSize = window.innerWidth <= 768;
+      
+      return mobileRegex.test(userAgent) || isMobileSize;
+    };
+    
     // Obter o tema atual do localStorage para garantir que será usado no formulário visualizado
     const currentThemeId = localStorage.getItem('soren-forms-theme');
     
-    // Define características da nova janela
-    const windowFeatures = 'width=1024,height=768,resizable=yes,scrollbars=yes,status=yes';
+    // Construir URL base - usar URL completa para evitar problemas com path relativo
+    const baseUrl = window.location.origin;
+    const formUrl = `${baseUrl}/form/${form.id}`;
     
-    // Construir URL com o tenant_id e tema_id para garantir que o contexto correto seja usado
-    let url = `/form/${form.id}`;
-    
-    // Adicionar parâmetros à URL
+    // Adicionar parâmetros à URL usando URLSearchParams
     const params = new URLSearchParams();
     
     // Adicionar tenant_id se disponível
@@ -272,15 +283,42 @@ export default function SavedForms() {
       params.append('theme_id', currentThemeId);
     }
     
-    // Adicionar os parâmetros à URL se houver algum
-    if (params.toString()) {
-      url += `?${params.toString()}`;
+    // Montar URL final
+    const finalUrl = params.toString() 
+      ? `${formUrl}?${params.toString()}`
+      : formUrl;
+    
+    console.log("Abrindo formulário com URL:", finalUrl);
+    
+    try {
+      // Verificar se estamos em dispositivo móvel
+      const isMobile = isMobileDevice();
+      
+      if (isMobile) {
+        // Em dispositivos móveis, navegar diretamente na mesma janela
+        window.location.href = finalUrl;
+      } else {
+        // Em desktop, abrir em uma nova janela com configurações específicas
+        const windowFeatures = 'width=1024,height=768,resizable=yes,scrollbars=yes,status=yes';
+        const newWindow = window.open(finalUrl, `formView_${form.id}`, windowFeatures);
+        
+        // Verificar se a janela foi bloqueada pelo navegador
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          toast({
+            title: "Popup bloqueado",
+            description: "Seu navegador bloqueou a abertura do formulário. Por favor, permita popups para este site.",
+            variant: "destructive",
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao abrir formulário:", error);
+      toast({
+        title: "Erro ao abrir formulário",
+        description: "Não foi possível abrir o formulário. Tente novamente.",
+        variant: "destructive",
+      });
     }
-    
-    console.log("Abrindo formulário com URL:", url);
-    
-    // Abre em uma nova janela com dimensões e características específicas
-    window.open(url, `formView_${form.id}`, windowFeatures);
   };
 
   const handleViewResponses = (form: any) => {

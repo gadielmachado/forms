@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, Clock } from "lucide-react";
+import { Send, Loader2, Clock, Check } from "lucide-react";
 import { toast, useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import { SuccessCard } from "@/components/success-card";
@@ -76,8 +76,14 @@ const ViewForm = () => {
   // Estado para armazenar o tenant_id efetivo
   const [effectiveTenantId, setEffectiveTenantId] = useState<string | undefined>(undefined);
 
+  // Adicionar após as demais declarações de estado
+  const [isMobileDevice, setIsMobileDevice] = useState(false);
+
   // Use isDebugMode para exibir informações diagnósticas no console
   const isDebugMode = true;
+
+  // Acessar o queryClient para invalidar consultas
+  const queryClient = useQueryClient();
 
   // Função utilitária para validar UUID
   const isValidUUID = (str: string | null | undefined): boolean => {
@@ -88,27 +94,46 @@ const ViewForm = () => {
 
   // Effect para detectar e configurar tenant_id da URL se presente
   useEffect(() => {
-    // Verificar se há tenant_id na URL
-    const urlTenantId = new URLSearchParams(location.search).get('tenant_id');
+    // Obter todos os parâmetros da URL usando URLSearchParams
+    const urlParams = new URLSearchParams(location.search);
     
-    if (urlTenantId && isValidUUID(urlTenantId)) {
-      console.log("🔑 Usando tenant_id da URL:", urlTenantId);
-      setEffectiveTenantId(urlTenantId);
-    } else if (currentTenant?.id) {
-      console.log("🔑 Usando tenant_id do contexto atual:", currentTenant.id);
-      setEffectiveTenantId(currentTenant.id);
-    } else {
-      console.log("⚠️ Nenhum tenant_id disponível no momento. Será buscado do formulário.");
+    try {
+      // Verificar se há tenant_id na URL
+      const urlTenantId = urlParams.get('tenant_id');
+      
+      if (urlTenantId && isValidUUID(urlTenantId)) {
+        console.log("🔑 Usando tenant_id da URL:", urlTenantId);
+        setEffectiveTenantId(urlTenantId);
+      } else if (currentTenant?.id) {
+        console.log("🔑 Usando tenant_id do contexto atual:", currentTenant.id);
+        setEffectiveTenantId(currentTenant.id);
+      } else {
+        console.log("⚠️ Nenhum tenant_id disponível no momento. Será buscado do formulário.");
+      }
+      
+      // Verificar se há theme_id na URL para aplicar imediatamente
+      const urlThemeId = urlParams.get('theme_id');
+      if (urlThemeId) {
+        // Atualizar o tema no localStorage para garantir consistência
+        localStorage.setItem('soren-forms-theme', urlThemeId);
+        console.log("🎨 Aplicando tema da URL:", urlThemeId);
+      }
+      
+      // Verificar e processar parâmetro 'embed'
+      const embedParam = urlParams.get('embed');
+      if (embedParam === 'true') {
+        console.log("📱 Modo incorporado (embed) detectado na URL");
+        // Possível lógica adicional para o modo embed
+      }
+      
+      // Log para debug
+      if (isDebugMode) {
+        console.log("📊 Todos os parâmetros da URL:", Object.fromEntries(urlParams.entries()));
+      }
+    } catch (error) {
+      console.error("❌ Erro ao processar parâmetros da URL:", error);
     }
-    
-    // Verificar se há theme_id na URL para aplicar imediatamente
-    const urlThemeId = new URLSearchParams(location.search).get('theme_id');
-    if (urlThemeId) {
-      // Atualizar o tema no localStorage para garantir consistência
-      localStorage.setItem('soren-forms-theme', urlThemeId);
-      console.log("🎨 Aplicando tema da URL:", urlThemeId);
-    }
-  }, [location.search, currentTenant]);
+  }, [location.search, currentTenant, isDebugMode]);
 
   // Effect para logging quando o componente montar (especialmente útil no iframe)
   useEffect(() => {
@@ -127,27 +152,63 @@ const ViewForm = () => {
     queryFn: async () => {
       console.log(`[ViewForm] Buscando formulário com ID: ${id}`);
 
-      // Buscar o formulário apenas pelo ID, sem filtrar por tenant_id
-      const { data, error } = await supabase
-        .from("forms")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error("[ViewForm] Erro ao buscar formulário:", error);
-        throw error;
+      if (!id) {
+        console.error("[ViewForm] ID do formulário está vazio ou indefinido");
+        throw new Error("ID do formulário não fornecido");
       }
 
-      if (!data) {
-        console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
-        throw new Error(`Formulário não encontrado com ID: ${id}`);
-      }
+      try {
+        // Buscar o formulário usando maybeSingle() em vez de single()
+        const { data, error } = await supabase
+          .from("forms")
+          .select("*")
+          .eq("id", id)
+          .maybeSingle();
 
-      console.log("[ViewForm] Formulário encontrado:", data);
-      return data as FormType;
+        if (error) {
+          console.error("[ViewForm] Erro do Supabase ao buscar formulário:", error);
+          throw new Error(`Erro ao carregar formulário: ${error.message}`);
+        }
+
+        if (!data) {
+          console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
+          throw new Error(`Formulário não encontrado com ID: ${id}`);
+        }
+
+        // Verificar se o campo fields é válido e tentar reparar se necessário
+        if (!data.fields || !Array.isArray(data.fields)) {
+          console.warn("[ViewForm] Formulário com estrutura inválida:", data);
+          
+          // Tentar converter se for uma string JSON
+          if (typeof data.fields === 'string') {
+            try {
+              data.fields = JSON.parse(data.fields);
+              console.log("[ViewForm] Campos JSON convertidos com sucesso:", data.fields);
+            } catch (e) {
+              console.error("[ViewForm] Erro ao converter campos JSON:", e);
+              data.fields = [];
+            }
+          } else {
+            console.warn("[ViewForm] Inicializando fields como array vazio");
+            data.fields = [];
+          }
+        }
+
+        console.log("[ViewForm] Formulário encontrado:", data);
+        return data as FormType;
+      } catch (error) {
+        // Melhorar a mensagem de erro para incluir mais detalhes
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : 'Erro desconhecido ao carregar o formulário';
+        
+        console.error("[ViewForm] Erro não tratado ao buscar formulário:", error);
+        throw new Error(`Erro ao carregar formulário: ${errorMessage}`);
+      }
     },
-    retry: 1,
+    retry: 3, // Aumentar o número de retentativas
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000), // Backoff exponencial
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 
   // Efeito para monitorar mudanças no formulário
@@ -994,183 +1055,355 @@ const ViewForm = () => {
     };
   }, [isEmbedded, form, id, isFormLoading, formError]);
 
-  return (
-    <div className={isEmbedded 
-      ? `${currentTheme.mode === 'dark' ? 'bg-gray-950' : 'bg-gray-100'} py-4 px-4 rounded-xl` // Layout mais compacto para o modo incorporado
-      : `min-h-screen ${currentTheme.mode === 'dark' ? 'bg-gray-950' : 'bg-gray-100'} py-8 px-4 sm:px-6 lg:px-8`
-    }>
-      <div className={isEmbedded ? "max-w-full" : "max-w-6xl mx-auto"}>
-        {/* No modo embed, não usamos grid e omitimos a coluna da imagem */}
-        <div className={isEmbedded 
-          ? "" 
-          : "grid grid-cols-1 lg:grid-cols-2 gap-8"
-        }>
-          {/* Coluna do Formulário - sempre visível */}
-          <div className={`${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-2xl shadow-md border p-8`}>
-            {isFormLoading ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <Loader2 className={`h-8 w-8 animate-spin ${currentTheme.colors.text}`} />
-                <p className={`mt-4 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm`}>Carregando formulário...</p>
-              </div>
-            ) : formError ? (
-              <div className={`${currentTheme.mode === 'dark' ? 'bg-red-900/20 border-red-800' : 'bg-red-100 border-red-300'} border rounded-lg p-6 text-center`}>
-                <p className={`${currentTheme.mode === 'dark' ? 'text-red-400' : 'text-red-600'} mb-2`}>Erro ao carregar o formulário</p>
-                <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>{formError.message}</p>
-                {isEmbedded && (
-                  <div className={`mt-4 pt-4 border-t ${currentTheme.mode === 'dark' ? 'border-red-800/50' : 'border-red-300/50'}`}>
-                    <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm font-medium mb-2`}>Possíveis causas:</p>
-                    <ul className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm list-disc pl-5 space-y-1`}>
-                      <li>O ID do formulário não existe no banco de dados</li>
-                      <li>O ID foi digitado incorretamente no código de incorporação</li>
-                      <li>O formulário pode ter sido excluído ou desativado</li>
-                    </ul>
-                    <div className={`mt-3 p-2 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-gray-50 border-gray-200'} rounded-md border`}>
-                      <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mb-1`}>ID do formulário usado:</p>
-                      <div className="flex items-center gap-2">
-                        <code className={`${currentTheme.mode === 'dark' ? 'bg-gray-800 text-amber-500' : 'bg-gray-100 text-amber-600'} rounded px-2 py-1 text-xs overflow-auto`}>{id}</code>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(id || "");
-                            toast({
-                              title: "ID copiado",
-                              description: "ID do formulário copiado para a área de transferência",
-                              variant: "default",
-                            });
-                          }}
-                          className={`text-xs ${currentTheme.colors.text} hover:opacity-80`}
-                        >
-                          Copiar ID
-                        </button>
-                      </div>
-                    </div>
-                    <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mt-4`}>
-                      Verifique se está usando o ID correto e tente novamente.
-                    </p>
-                  </div>
-                )}
-              </div>
-            ) : !form?.fields || form.fields.length === 0 ? (
-              <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
-                <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} mb-2`}>Formulário vazio</p>
-                <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>Este formulário não possui campos configurados.</p>
-                <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mt-4`}>ID do formulário: {id}</p>
-              </div>
-            ) : (
-              <>
-                {/* Indicadores de passo - adaptar para modo embed se necessário */}
-                {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
-
-            {/* Campos do Formulário */}
-            <div className="space-y-6">
-                  {getCurrentStepFields().length > 0 ? (
-                    <>
-                      {getCurrentStepFields().map(renderField)}
-                      {renderStepDivider()}
-                    </>
-                  ) : (
-                    <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
-                      <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
-                    </div>
-                  )}
+  // Componente melhorado para exibir o erro
+  const renderErrorState = () => {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center">
+        <div className={`max-w-md w-full ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border rounded-lg p-6 shadow-md`}>
+          <div className="text-center">
+            <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${currentTheme.mode === 'dark' ? 'bg-red-900/30' : 'bg-red-100'}`}>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`h-6 w-6 ${currentTheme.mode === 'dark' ? 'text-red-400' : 'text-red-600'}`}
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
+                />
+              </svg>
             </div>
-
-            {/* Botões de Navegação */}
-            <div className="flex justify-between pt-6">
-                  {hasStepDividers && !isFirstStep && (
-                <Button 
-                  onClick={prevStep} 
-                  variant="outline"
-                      className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span>Anterior</span>
-                </Button>
-              )}
-                  
-                  {hasStepDividers && !isLastStep ? (
-                <Button 
-                  onClick={nextStep} 
-                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
-                >
-                  <span>Próximo</span>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Button>
-              ) : (
-                <Button 
-                  onClick={handleSubmit} 
-                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          <span>Enviando...</span>
-                        </>
-                      ) : (
-                        <>
-                  <span>Enviar</span>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4 ml-2" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                        </>
-                      )}
-                </Button>
-              )}
-            </div>
-              </>
-            )}
-          </div>
-
-          {/* Coluna da Imagem - ocultar no modo embed */}
-          {!isEmbedded && (
-          <div className="hidden lg:block">
-            <div className="sticky top-8">
-              <img
-                src={form?.image_url || "/form-image.svg"}
-                alt="Imagem do Formulário"
-                  className={`w-full h-auto rounded-2xl object-cover shadow-lg border ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-300'}`}
-                onError={(e) => {
-                  console.error("Erro ao carregar imagem:", e);
-                  e.currentTarget.src = "/form-image.svg";
-                }}
-              />
-                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                  Sobre este formulário
-                </h3>
-                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  Complete todos os campos necessários. Suas respostas são importantes
-                  para nós.
+            <h2 className={`mt-4 text-lg font-medium ${currentTheme.colors.text}`}>
+              Erro ao carregar o formulário
+            </h2>
+            <p className={`mt-2 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+              {formError?.message || "Não foi possível carregar o formulário. Verifique o ID e tente novamente."}
+            </p>
+            
+            <div className={`mt-6 pt-4 border-t ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-200'}`}>
+              <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm font-medium mb-2`}>
+                Possíveis causas:
+              </p>
+              <ul className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm list-disc pl-5 text-left space-y-1`}>
+                <li>O ID do formulário não existe ou foi excluído</li>
+                <li>O ID foi digitado incorretamente</li>
+                <li>Problema temporário de conexão</li>
+              </ul>
+              
+              <div className={`mt-4 p-3 ${currentTheme.mode === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-md border text-left`}>
+                <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mb-1`}>
+                  ID do formulário usado:
                 </p>
+                <div className="flex items-center gap-2">
+                  <code className={`${currentTheme.mode === 'dark' ? 'bg-gray-700 text-amber-400' : 'bg-gray-100 text-amber-600'} rounded px-2 py-1 text-xs flex-1 overflow-auto`}>
+                    {id}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(id || "");
+                      toast({
+                        title: "ID copiado",
+                        description: "ID do formulário copiado para a área de transferência",
+                        variant: "default",
+                      });
+                    }}
+                    className={`text-xs ${currentTheme.colors.primary} hover:opacity-80`}
+                  >
+                    Copiar
+                  </button>
+                </div>
               </div>
             </div>
+            
+            <div className="mt-6 flex gap-3 justify-center">
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => window.location.reload()}
+                className={`${currentTheme.mode === 'dark' ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-100'}`}
+              >
+                Tentar novamente
+              </Button>
+              <Button 
+                variant="default"
+                size="sm"
+                onClick={() => window.history.back()}
+                className={`${currentTheme.colors.primaryButton}`}
+              >
+                Voltar
+              </Button>
+            </div>
           </div>
-          )}
         </div>
       </div>
+    );
+  };
 
+  // Effect para monitorar o estado de conexão e reiniciar consultas quando ficar online
+  useEffect(() => {
+    // Manipulador para quando o navegador ficar online
+    const handleOnline = () => {
+      console.log("🌐 Conexão de internet restabelecida. Recarregando dados...");
+      
+      // Mostrar toast informando o usuário
+      toast({
+        title: "Conexão restabelecida",
+        description: "Recarregando formulário...",
+      });
+      
+      // Invalidar o cache e forçar recarga dos dados do formulário
+      queryClient.invalidateQueries({
+        queryKey: ["form", id],
+      });
+    };
+    
+    // Manipulador para quando o navegador ficar offline
+    const handleOffline = () => {
+      console.log("📡 Conexão de internet perdida");
+      
+      // Mostrar toast informando o usuário sobre a perda de conexão
+      toast({
+        title: "Sem conexão",
+        description: "Verifique sua conexão com a internet",
+        variant: "destructive",
+      });
+    };
+    
+    // Registrar os event listeners
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Limpar os event listeners quando o componente for desmontado
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [id, queryClient, toast]);
+
+  // Adicionar este useEffect para detectar dispositivos móveis
+  useEffect(() => {
+    // Detectar se o dispositivo é móvel
+    const checkIfMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      
+      // Verificar se é um dispositivo móvel pelo user agent
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      
+      // Verificar se é um dispositivo móvel pelo tamanho da tela
+      const isMobileSize = window.innerWidth <= 768;
+      
+      return mobileRegex.test(userAgent) || isMobileSize;
+    };
+    
+    // Definir o estado
+    setIsMobileDevice(checkIfMobile());
+    
+    // Atualizar o estado quando a janela for redimensionada
+    const handleResize = () => {
+      setIsMobileDevice(checkIfMobile());
+    };
+    
+    // Registrar o listener para redimensionamento
+    window.addEventListener('resize', handleResize);
+    
+    // Log para depuração
+    if (isDebugMode) {
+      console.log("📱 Dispositivo móvel detectado:", checkIfMobile());
+    }
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [isDebugMode]);
+
+  return (
+    <div className={cn(
+      "min-h-screen flex flex-col", 
+      isEmbedded ? "" : "p-2 sm:p-4 md:p-6"
+    )}>
+      {isFormLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className={`h-8 w-8 animate-spin ${currentTheme.colors.text}`} />
+            <p className={`mt-4 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
+              Carregando formulário...
+            </p>
+          </div>
+        </div>
+      ) : formError ? (
+        renderErrorState()
+      ) : (
+        <div className={isEmbedded || isMobileDevice 
+          ? "max-w-full" 
+          : "max-w-6xl mx-auto"
+        }>
+          <div className={isEmbedded || isMobileDevice
+            ? "" 
+            : "grid grid-cols-1 lg:grid-cols-2 gap-8"
+          }>
+            {/* Coluna do Formulário - sempre visível */}
+            <div className={`${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl sm:rounded-2xl shadow-md border p-4 sm:p-6 md:p-8`}>
+              {/* Conteúdo do formulário */}
+              {showSuccess ? (
+                // Estado de sucesso
+                <div className="py-8 text-center">
+                  <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${currentTheme.mode === 'dark' ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                    <Check className={`h-6 w-6 ${currentTheme.mode === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
+                  </div>
+                  <h1 className={`mt-4 text-2xl font-semibold ${currentTheme.colors.text}`}>
+                    Formulário Enviado com Sucesso!
+                  </h1>
+                  <p className={`mt-2 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Obrigado por completar o formulário! Suas respostas foram enviadas com sucesso.
+                  </p>
+                  <div className="mt-6">
+                    <Button 
+                      onClick={() => {
+                        setShowSuccess(false);
+                        setFormResponses({});
+                        setCurrentStep(1);
+                      }}
+                    >
+                      Voltar para o Início
+                    </Button>
+                  </div>
+                </div>
+              ) : !form?.fields || form.fields.length === 0 ? (
+                // Estado de formulário vazio
+                <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} mb-2`}>
+                    Formulário vazio
+                  </p>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                    Este formulário não possui campos configurados.
+                  </p>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mt-4`}>
+                    ID do formulário: {id}
+                  </p>
+                </div>
+              ) : (
+                // Formulário normal
+                <>
+                  {/* Indicadores de passo - adaptar para modo embed se necessário */}
+                  {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
+
+                  {/* Campos do Formulário */}
+                  <div className="space-y-6">
+                    {getCurrentStepFields().length > 0 ? (
+                      <>
+                        {getCurrentStepFields().map(renderField)}
+                        {renderStepDivider()}
+                      </>
+                    ) : (
+                      <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
+                        <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Botões de Navegação */}
+                  <div className="flex justify-between pt-6">
+                    {hasStepDividers && !isFirstStep && (
+                      <Button 
+                        onClick={prevStep} 
+                        variant="outline"
+                        className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
+                      >
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-4 w-4" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                        <span>Anterior</span>
+                      </Button>
+                    )}
+                    
+                    {hasStepDividers && !isLastStep ? (
+                      <Button 
+                        onClick={nextStep} 
+                        className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
+                      >
+                        <span>Próximo</span>
+                        <svg 
+                          xmlns="http://www.w3.org/2000/svg" 
+                          className="h-4 w-4" 
+                          fill="none" 
+                          viewBox="0 0 24 24" 
+                          stroke="currentColor"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleSubmit} 
+                        className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            <span>Enviando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Enviar</span>
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              className="h-4 w-4 ml-2" 
+                              fill="none" 
+                              viewBox="0 0 24 24" 
+                              stroke="currentColor"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Coluna da Imagem - ocultar no modo embed e em dispositivos móveis */}
+            {!isEmbedded && !isMobileDevice && (
+              <div className="hidden lg:block">
+                <div className="sticky top-8">
+                  <img
+                    src={form?.image_url || "/form-image.svg"}
+                    alt="Imagem do Formulário"
+                    className={`w-full h-auto rounded-2xl object-cover shadow-lg border ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-300'}`}
+                    onError={(e) => {
+                      console.error("Erro ao carregar imagem:", e);
+                      e.currentTarget.src = "/form-image.svg";
+                    }}
+                  />
+                  <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                    <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                      Sobre este formulário
+                    </h3>
+                    <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                      Complete todos os campos necessários. Suas respostas são importantes
+                      para nós.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* Card de Sucesso */}
       <SuccessCard 
         open={showSuccess} 
