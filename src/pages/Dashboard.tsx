@@ -38,11 +38,14 @@ const Dashboard = () => {
   // Estado para o filtro de período
   const [timePeriod, setTimePeriod] = useState("7");
   
-  // Buscar respostas de hoje - FILTRADAS POR TENANT (se existir)
+  // Buscar respostas de hoje - FILTRADAS POR TENANT (OBRIGATÓRIO)
   const { data: todayResponses, isLoading: isLoadingToday } = useQuery({
     queryKey: ["today-responses", currentTenant?.id],
     queryFn: async () => {
-      if (!currentTenant) return 0;
+      if (!currentTenant?.id) {
+        console.warn("Dashboard: Tentativa de buscar dados sem tenant_id");
+        return 0;
+      }
       
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -54,17 +57,21 @@ const Dashboard = () => {
         .gte("created_at", today.toISOString());
 
       if (error) throw error;
+      console.log(`Dashboard: Carregadas ${count || 0} respostas de hoje para tenant ${currentTenant.id}`);
       return count || 0;
     },
-    // Permitir execução mesmo sem tenant, retornando valores padrão
-    enabled: true
+    // CRUCIAL: Só executar quando houver tenant_id
+    enabled: !!currentTenant?.id
   });
 
   // Buscar total de formulários - FILTRADOS POR TENANT
   const { data: totalForms, isLoading: isLoadingForms } = useQuery({
     queryKey: ["total-forms", currentTenant?.id],
     queryFn: async () => {
-      if (!currentTenant) return 0;
+      if (!currentTenant?.id) {
+        console.warn("Dashboard: Tentativa de buscar formulários sem tenant_id");
+        return 0;
+      }
       
       const { count, error } = await supabase
         .from("forms")
@@ -72,16 +79,20 @@ const Dashboard = () => {
         .eq("tenant_id", currentTenant.id);
 
       if (error) throw error;
+      console.log(`Dashboard: Carregados ${count || 0} formulários totais para tenant ${currentTenant.id}`);
       return count || 0;
     },
-    enabled: true
+    enabled: !!currentTenant?.id
   });
 
   // Buscar total de respostas - FILTRADAS POR TENANT
   const { data: totalResponses, isLoading: isLoadingResponses } = useQuery({
     queryKey: ["total-responses", currentTenant?.id],
     queryFn: async () => {
-      if (!currentTenant) return 0;
+      if (!currentTenant?.id) {
+        console.warn("Dashboard: Tentativa de buscar respostas sem tenant_id");
+        return 0;
+      }
       
       const { count, error } = await supabase
         .from("form_responses")
@@ -89,16 +100,20 @@ const Dashboard = () => {
         .eq("tenant_id", currentTenant.id);
 
       if (error) throw error;
+      console.log(`Dashboard: Carregadas ${count || 0} respostas totais para tenant ${currentTenant.id}`);
       return count || 0;
     },
-    enabled: true
+    enabled: !!currentTenant?.id
   });
 
   // Buscar usuários associados ao tenant
   const { data: totalUsers, isLoading: isLoadingUsers } = useQuery({
     queryKey: ["total-users", currentTenant?.id],
     queryFn: async () => {
-      if (!currentTenant) return 0;
+      if (!currentTenant?.id) {
+        console.warn("Dashboard: Tentativa de buscar usuários sem tenant_id");
+        return 0;
+      }
       
       const { count, error } = await supabase
         .from("user_tenants")
@@ -106,16 +121,20 @@ const Dashboard = () => {
         .eq("tenant_id", currentTenant.id);
 
       if (error) throw error;
+      console.log(`Dashboard: Carregados ${count || 0} usuários para tenant ${currentTenant.id}`);
       return count || 0;
     },
-    enabled: true
+    enabled: !!currentTenant?.id
   });
 
   // Buscar dados reais para o gráfico de evolução - FILTRADOS POR TENANT
   const { data: timeSeriesRawData, isLoading: isLoadingTimeSeries } = useQuery({
     queryKey: ["time-series", currentTenant?.id, timePeriod],
     queryFn: async () => {
-      if (!currentTenant) return [];
+      if (!currentTenant?.id) {
+        console.warn("Dashboard: Tentativa de buscar dados de série temporal sem tenant_id");
+        return [];
+      }
       
       const startDate = new Date();
       const days = parseInt(timePeriod);
@@ -129,9 +148,10 @@ const Dashboard = () => {
         .order("created_at", { ascending: true });
 
       if (error) throw error;
+      console.log(`Dashboard: Carregados ${data?.length || 0} pontos de dados para gráfico de evolução do tenant ${currentTenant.id}`);
       return data || [];
     },
-    enabled: true
+    enabled: !!currentTenant?.id
   });
 
   // Processar dados brutos para o formato do gráfico

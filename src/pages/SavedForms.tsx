@@ -169,13 +169,19 @@ export default function SavedForms() {
   const A4_HEIGHT_PX = 1123; // Altura A4 em 96dpi
   const PAGE_MARGIN_PX = 40; // Margem em px
 
-  // Buscar formulários
+  // Buscar formulários - CRÍTICO: Filtrar por tenant_id para garantir isolamento de dados
   const { data: forms = [], isLoading, refetch } = useQuery({
-    queryKey: ["forms"],
+    queryKey: ["forms", currentTenant?.id],
     queryFn: async () => {
+      if (!currentTenant?.id) {
+        console.warn("Nenhum tenant selecionado, retornando lista vazia");
+        return [];
+      }
+
       const { data, error } = await supabase
         .from("forms")
         .select("*")
+        .eq("tenant_id", currentTenant.id)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -187,8 +193,10 @@ export default function SavedForms() {
         return [];
       }
 
+      console.log(`Carregados ${data?.length || 0} formulários para o tenant ${currentTenant.id}`);
       return data || [];
     },
+    enabled: !!currentTenant?.id // Só executa a query quando há um tenant selecionado
   });
 
   // Filtrar formulários com base na busca
