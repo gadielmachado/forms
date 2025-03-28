@@ -1277,16 +1277,17 @@ Instruções Adicionais:
       }
 
       // Determinar URL da API com base no ambiente
-      let apiBaseUrl = '/api/openai';  // URL padrão
-
-      // Para desenvolvimento local, use a URL do servidor backend
+      let apiBaseUrl = '/api/openai';  // URL para produção
+      
+      // Para desenvolvimento local, use a URL completa com origem
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        apiBaseUrl = 'http://localhost:3001/api/openai';
+        const port = window.location.port ? `:${window.location.port}` : '';
+        apiBaseUrl = `${window.location.protocol}//${window.location.hostname}${port}/api/openai`;
       }
+      
+      console.log("Chamando API OpenAI em:", apiBaseUrl);
 
-      console.log("Chamando API em:", apiBaseUrl);
-
-      // Nova chamada à API através do backend
+      // Nova chamada à API através do proxy
       const response = await fetch(apiBaseUrl, {
         method: "POST",
         headers: {

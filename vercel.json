@@ -1,7 +1,22 @@
 {
   "version": 2,
-  "buildCommand": "npm install --force && npm run build",
-  "installCommand": "npm install --force",
-  "framework": "vite",
-  "outputDirectory": "dist"
-}
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/openai", "dest": "/api/openai.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "github": {
+    "enabled": true
+  }
+} 
