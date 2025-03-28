@@ -165,20 +165,24 @@ const ViewForm = () => {
         console.log(`[ViewForm-Debug] Detalhes da requisição: URL=${window.location.href}, Mobile=${isMobileDevice}, Embed=${isEmbedded}`);
         console.log(`[ViewForm-Debug] Usando ID do formulário: ${id}`);
 
-        // Usar eq para comparação exata do ID
+        // MODIFICAÇÃO: Não usar .single() para evitar erro de múltiplas linhas
         let { data, error } = await supabase
           .from("forms")
           .select("*")
           .eq("id", id.trim()) // Garantir que o ID esteja sem espaços
-          .single();
+          .limit(1); // Limitar a 1 resultado em vez de .single()
 
         // Verificar os resultados detalhadamente
-        console.log(`[ViewForm-Debug] Resposta do Supabase: Status=${error ? 'Erro' : 'Sucesso'}`);
+        console.log(`[ViewForm-Debug] Resposta do Supabase: Status=${error ? 'Erro' : 'Sucesso'}, Resultados: ${data?.length || 0}`);
+        
         if (error) {
           console.error("[ViewForm] Erro detalhado do Supabase:", error);
           console.error(`[ViewForm] Código de erro: ${error.code}, Mensagem: ${error.message}, Detalhes: ${error.details}`);
-          
-          // Tentar nova abordagem se a primeira falhar
+          throw new Error(`Erro ao carregar formulário: ${error.message}`);
+        }
+        
+        // Verificar se temos dados - como não usamos .single(), precisamos verificar o array
+        if (!data || data.length === 0) {
           console.log("[ViewForm-Debug] Tentando abordagem alternativa de consulta...");
           
           // Segunda tentativa usando like em vez de eq
@@ -190,32 +194,35 @@ const ViewForm = () => {
             
           if (retryResult.error) {
             console.error("[ViewForm] Erro na segunda tentativa:", retryResult.error);
-            throw new Error(`Erro ao carregar formulário: ${error.message}`);
+            throw new Error(`Erro ao carregar formulário: ${retryResult.error.message}`);
           }
           
           if (retryResult.data && retryResult.data.length > 0) {
             console.log("[ViewForm-Debug] Formulário encontrado na segunda tentativa:", retryResult.data[0]);
-            data = retryResult.data[0];
+            data = retryResult.data;
           } else {
             console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
             throw new Error(`Formulário não encontrado com ID: ${id}`);
           }
         }
 
-        if (!data) {
+        // Pegar o primeiro item do array (já que não usamos .single())
+        const formData = data[0];
+        
+        if (!formData) {
           console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
           throw new Error(`Formulário não encontrado com ID: ${id}`);
         }
 
         // Verificar e tratar a estrutura de dados antes de retornar
         let processedFields: FormField[] = [];
-        if (!data.fields || !Array.isArray(data.fields)) {
-          console.warn("[ViewForm] Formulário com estrutura inválida:", data);
+        if (!formData.fields || !Array.isArray(formData.fields)) {
+          console.warn("[ViewForm] Formulário com estrutura inválida:", formData);
           
           // Tentar converter se for uma string JSON
-          if (typeof data.fields === 'string') {
+          if (typeof formData.fields === 'string') {
             try {
-              const parsedFields = JSON.parse(data.fields);
+              const parsedFields = JSON.parse(formData.fields);
               if (Array.isArray(parsedFields)) {
                 processedFields = parsedFields as FormField[];
               }
@@ -230,24 +237,24 @@ const ViewForm = () => {
           }
         } else {
           // Se já for um array, usar diretamente
-          processedFields = data.fields as unknown as FormField[];
+          processedFields = formData.fields as unknown as FormField[];
         }
 
-        console.log("[ViewForm] Formulário encontrado:", data);
+        console.log("[ViewForm] Formulário encontrado:", formData);
         
         // Converter explicitamente para o formato correto
-        const formData: FormType = {
-          id: data.id,
-          name: data.name || "",
+        const result: FormType = {
+          id: formData.id,
+          name: formData.name || "",
           fields: processedFields,
-          image_url: data.image_url,
-          tenant_id: (data as any).tenant_id || "",
-          user_id: data.user_id,
-          created_at: data.created_at,
-          updated_at: data.updated_at
+          image_url: formData.image_url,
+          tenant_id: (formData as any).tenant_id || "",
+          user_id: formData.user_id,
+          created_at: formData.created_at,
+          updated_at: formData.updated_at
         };
         
-        return formData;
+        return result;
       } catch (error) {
         // Melhorar a mensagem de erro para incluir mais detalhes
         const errorMessage = error instanceof Error 
