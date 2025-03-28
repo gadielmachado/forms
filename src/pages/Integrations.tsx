@@ -26,7 +26,6 @@ const SETTINGS_ID = 1;
 export default function Integrations() {
   const { currentTenant } = useTenant();
   const [adminEmail, setAdminEmail] = useState("");
-  const [redirectUrl, setRedirectUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +69,7 @@ export default function Integrations() {
 
       const { data, error } = await supabase
         .from('settings')
-        .select('admin_email, redirect_url')
+        .select('admin_email')
         .eq('tenant_id', currentTenant.id)
         .single();
 
@@ -86,16 +85,11 @@ export default function Integrations() {
         setAdminEmail(data.admin_email);
         console.log("Email carregado:", data.admin_email);
       }
-      
-      if (data?.redirect_url) {
-        setRedirectUrl(data.redirect_url);
-        console.log("URL de redirecionamento carregado:", data.redirect_url);
-      }
     } catch (error) {
       console.error("Erro ao carregar configurações:", error);
       toast({
         title: "Erro ao carregar configurações",
-        description: "Não foi possível carregar as configurações.",
+        description: "Não foi possível carregar o email do administrador.",
         variant: "destructive",
       });
     } finally {
@@ -109,14 +103,12 @@ export default function Integrations() {
     try {
       setIsSaving(true);
       console.log("Salvando email:", adminEmail);
-      console.log("Salvando URL de redirecionamento:", redirectUrl);
 
       const { error } = await supabase
         .from('settings')
         .upsert({
           tenant_id: currentTenant.id,
           admin_email: adminEmail,
-          redirect_url: redirectUrl,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'tenant_id'
@@ -126,16 +118,16 @@ export default function Integrations() {
 
       toast({
         title: "Configurações salvas",
-        description: "Configurações atualizadas com sucesso.",
+        description: "Email do administrador atualizado com sucesso.",
         variant: "success",
       });
       
-      console.log("Configurações salvas com sucesso!");
+      console.log("Email salvo com sucesso!");
     } catch (error) {
-      console.error("Erro ao salvar configurações:", error);
+      console.error("Erro ao salvar email:", error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações. Tente novamente.",
+        description: "Não foi possível salvar o email. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -295,39 +287,6 @@ export default function Integrations() {
                   disabled={isTesting || !adminEmail || isLoading}
                 >
                   Testar EmailJS
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Redirecionamento</CardTitle>
-              <CardDescription>
-                Configure uma URL para redirecionar o usuário após o envio do formulário (opcional)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="redirectUrl">URL de Redirecionamento</Label>
-                <Input
-                  id="redirectUrl"
-                  type="url"
-                  placeholder="https://exemplo.com/obrigado"
-                  value={redirectUrl}
-                  onChange={(e) => setRedirectUrl(e.target.value)}
-                  disabled={isLoading || isSaving}
-                />
-                <p className="text-sm text-gray-500">
-                  Deixe em branco se não desejar redirecionamento após o envio.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleSaveEmail}
-                  disabled={isSaving || isLoading}
-                >
-                  {isSaving ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </CardContent>

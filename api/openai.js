@@ -30,7 +30,9 @@ export default async function handler(req, res) {
     
     if (!apiKey) {
       console.error('Chave da API OpenAI não está configurada');
-      return res.status(500).json({ error: 'Chave da API não está configurada no servidor. Configure a variável de ambiente OPENAI_API_KEY.' });
+      return res.status(500).json({ 
+        error: 'Chave da API não está configurada no servidor. Configure a variável de ambiente OPENAI_API_KEY.'
+      });
     }
     
     console.log('Fazendo chamada para OpenAI API');

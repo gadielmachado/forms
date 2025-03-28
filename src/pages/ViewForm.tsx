@@ -98,26 +98,26 @@ const ViewForm = () => {
     const urlParams = new URLSearchParams(location.search);
     
     try {
-      // Verificar se há tenant_id na URL
+    // Verificar se há tenant_id na URL
       const urlTenantId = urlParams.get('tenant_id');
-      
-      if (urlTenantId && isValidUUID(urlTenantId)) {
-        console.log("🔑 Usando tenant_id da URL:", urlTenantId);
-        setEffectiveTenantId(urlTenantId);
-      } else if (currentTenant?.id) {
-        console.log("🔑 Usando tenant_id do contexto atual:", currentTenant.id);
-        setEffectiveTenantId(currentTenant.id);
-      } else {
-        console.log("⚠️ Nenhum tenant_id disponível no momento. Será buscado do formulário.");
-      }
-      
-      // Verificar se há theme_id na URL para aplicar imediatamente
+    
+    if (urlTenantId && isValidUUID(urlTenantId)) {
+      console.log("🔑 Usando tenant_id da URL:", urlTenantId);
+      setEffectiveTenantId(urlTenantId);
+    } else if (currentTenant?.id) {
+      console.log("🔑 Usando tenant_id do contexto atual:", currentTenant.id);
+      setEffectiveTenantId(currentTenant.id);
+    } else {
+      console.log("⚠️ Nenhum tenant_id disponível no momento. Será buscado do formulário.");
+    }
+    
+    // Verificar se há theme_id na URL para aplicar imediatamente
       const urlThemeId = urlParams.get('theme_id');
-      if (urlThemeId) {
-        // Atualizar o tema no localStorage para garantir consistência
-        localStorage.setItem('soren-forms-theme', urlThemeId);
-        console.log("🎨 Aplicando tema da URL:", urlThemeId);
-      }
+    if (urlThemeId) {
+      // Atualizar o tema no localStorage para garantir consistência
+      localStorage.setItem('soren-forms-theme', urlThemeId);
+      console.log("🎨 Aplicando tema da URL:", urlThemeId);
+    }
       
       // Verificar e processar parâmetro 'embed'
       const embedParam = urlParams.get('embed');
@@ -159,21 +159,21 @@ const ViewForm = () => {
 
       try {
         // Buscar o formulário usando maybeSingle() em vez de single()
-        const { data, error } = await supabase
-          .from("forms")
-          .select("*")
-          .eq("id", id)
+      const { data, error } = await supabase
+        .from("forms")
+        .select("*")
+        .eq("id", id)
           .maybeSingle();
 
-        if (error) {
+      if (error) {
           console.error("[ViewForm] Erro do Supabase ao buscar formulário:", error);
           throw new Error(`Erro ao carregar formulário: ${error.message}`);
-        }
+      }
 
-        if (!data) {
-          console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
-          throw new Error(`Formulário não encontrado com ID: ${id}`);
-        }
+      if (!data) {
+        console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
+        throw new Error(`Formulário não encontrado com ID: ${id}`);
+      }
 
         // Verificar se o campo fields é válido e tentar reparar se necessário
         if (!data.fields || !Array.isArray(data.fields)) {
@@ -194,8 +194,8 @@ const ViewForm = () => {
           }
         }
 
-        console.log("[ViewForm] Formulário encontrado:", data);
-        return data as FormType;
+      console.log("[ViewForm] Formulário encontrado:", data);
+      return data as FormType;
       } catch (error) {
         // Melhorar a mensagem de erro para incluir mais detalhes
         const errorMessage = error instanceof Error 
@@ -640,8 +640,8 @@ const ViewForm = () => {
       console.log('Buscando email do administrador...');
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
-        .select('admin_email, redirect_url')
-        .eq('tenant_id', tenantId)
+        .select('admin_email')
+        .eq('id', 1)
         .single();
 
       if (settingsError) {
@@ -715,52 +715,12 @@ const ViewForm = () => {
         
         console.log('Email enviado com sucesso:', emailResult.status, emailResult.text);
         
-        // Depois do envio bem-sucedido, verificar se existe uma URL de redirecionamento
-        // Buscar as configurações do tenant
-        const { data: settings, error: settingsError } = await supabase
-          .from('settings')
-          .select('admin_email, redirect_url')
-          .eq('tenant_id', tenantId)
-          .single();
-
-        if (!settingsError && settings?.redirect_url) {
-          // Se tiver uma URL de redirecionamento configurada, redirecionar após um pequeno delay
-          const redirectUrl = settings.redirect_url;
-          
-          // Primeiro mostrar o alerta de sucesso
-          toast({
-            title: "Sucesso!",
-            description: "Suas respostas foram enviadas. Você será redirecionado em instantes.",
-            variant: "default",
-          });
-          
-          // Definir um pequeno delay antes de redirecionar para que o usuário possa ver a mensagem
-          setTimeout(() => {
-            // Verificar se é uma URL válida
-            try {
-              // Verificar se é uma URL válida tentando criar um objeto URL
-              new URL(redirectUrl);
-              
-              // Redirecionar para a URL configurada
-              window.location.href = redirectUrl;
-            } catch (urlError) {
-              console.error("URL de redirecionamento inválida:", urlError);
-              // Continuar com o comportamento padrão sem redirecionamento
-              setFormResponses({});
-              setCurrentStep(1);
-              setShowSuccess(true);
-            }
-          }, 1500); // Redirecionamento após 1,5 segundos
-          
-          // Retornar aqui para não executar o comportamento padrão
-          return;
-        }
-
-        // Comportamento padrão (sem redirecionamento)
-        setFormResponses({});
-        setCurrentStep(1);
-        setShowSuccess(true);
-
+        // Tudo concluído com sucesso
+        toast({
+          title: "Sucesso!",
+          description: "Suas respostas foram enviadas e a notificação por email foi processada.",
+          variant: "default",
+        });
       } catch (emailError: any) {
         // Melhorar o log de erro para mais detalhes
         console.error('Erro detalhado ao enviar email:', emailError);
@@ -773,6 +733,10 @@ const ViewForm = () => {
           variant: "destructive",
         });
       }
+
+      setFormResponses({});
+      setCurrentStep(1);
+      setShowSuccess(true);
 
     } catch (error: any) {
       console.error('Erro detalhado ao processar envio:', error);
@@ -1093,7 +1057,7 @@ const ViewForm = () => {
 
   // Componente melhorado para exibir o erro
   const renderErrorState = () => {
-    return (
+  return (
       <div className="flex min-h-[70vh] items-center justify-center">
         <div className={`max-w-md w-full ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} border rounded-lg p-6 shadow-md`}>
           <div className="text-center">
@@ -1112,7 +1076,7 @@ const ViewForm = () => {
                   d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" 
                 />
               </svg>
-            </div>
+              </div>
             <h2 className={`mt-4 text-lg font-medium ${currentTheme.colors.text}`}>
               Erro ao carregar o formulário
             </h2>
@@ -1128,31 +1092,31 @@ const ViewForm = () => {
                 <li>O ID do formulário não existe ou foi excluído</li>
                 <li>O ID foi digitado incorretamente</li>
                 <li>Problema temporário de conexão</li>
-              </ul>
+                    </ul>
               
               <div className={`mt-4 p-3 ${currentTheme.mode === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'} rounded-md border text-left`}>
                 <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-xs mb-1`}>
                   ID do formulário usado:
                 </p>
-                <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                   <code className={`${currentTheme.mode === 'dark' ? 'bg-gray-700 text-amber-400' : 'bg-gray-100 text-amber-600'} rounded px-2 py-1 text-xs flex-1 overflow-auto`}>
                     {id}
                   </code>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(id || "");
-                      toast({
-                        title: "ID copiado",
-                        description: "ID do formulário copiado para a área de transferência",
-                        variant: "default",
-                      });
-                    }}
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(id || "");
+                            toast({
+                              title: "ID copiado",
+                              description: "ID do formulário copiado para a área de transferência",
+                              variant: "default",
+                            });
+                          }}
                     className={`text-xs ${currentTheme.colors.primary} hover:opacity-80`}
-                  >
+                        >
                     Copiar
-                  </button>
-                </div>
-              </div>
+                        </button>
+                      </div>
+                    </div>
             </div>
             
             <div className="mt-6 flex gap-3 justify-center">
@@ -1268,8 +1232,8 @@ const ViewForm = () => {
             <Loader2 className={`h-8 w-8 animate-spin ${currentTheme.colors.text}`} />
             <p className={`mt-4 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
               Carregando formulário...
-            </p>
-          </div>
+                    </p>
+                  </div>
         </div>
       ) : formError ? (
         renderErrorState()
@@ -1308,10 +1272,10 @@ const ViewForm = () => {
                       Voltar para o Início
                     </Button>
                   </div>
-                </div>
-              ) : !form?.fields || form.fields.length === 0 ? (
+              </div>
+            ) : !form?.fields || form.fields.length === 0 ? (
                 // Estado de formulário vazio
-                <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
+              <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
                   <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} mb-2`}>
                     Formulário vazio
                   </p>
@@ -1321,125 +1285,125 @@ const ViewForm = () => {
                   <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mt-4`}>
                     ID do formulário: {id}
                   </p>
-                </div>
-              ) : (
+              </div>
+            ) : (
                 // Formulário normal
-                <>
-                  {/* Indicadores de passo - adaptar para modo embed se necessário */}
-                  {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
+              <>
+                {/* Indicadores de passo - adaptar para modo embed se necessário */}
+                {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
 
-                  {/* Campos do Formulário */}
-                  <div className="space-y-6">
-                    {getCurrentStepFields().length > 0 ? (
-                      <>
-                        {getCurrentStepFields().map(renderField)}
-                        {renderStepDivider()}
-                      </>
-                    ) : (
-                      <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
-                        <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
-                      </div>
-                    )}
-                  </div>
+            {/* Campos do Formulário */}
+            <div className="space-y-6">
+                  {getCurrentStepFields().length > 0 ? (
+                    <>
+                      {getCurrentStepFields().map(renderField)}
+                      {renderStepDivider()}
+                    </>
+                  ) : (
+                    <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
+                      <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
+                    </div>
+                  )}
+            </div>
 
-                  {/* Botões de Navegação */}
-                  <div className="flex justify-between pt-6">
-                    {hasStepDividers && !isFirstStep && (
-                      <Button 
-                        onClick={prevStep} 
-                        variant="outline"
-                        className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                      >
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className="h-4 w-4" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                        <span>Anterior</span>
-                      </Button>
-                    )}
-                    
-                    {hasStepDividers && !isLastStep ? (
-                      <Button 
-                        onClick={nextStep} 
-                        className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
-                      >
-                        <span>Próximo</span>
-                        <svg 
-                          xmlns="http://www.w3.org/2000/svg" 
-                          className="h-4 w-4" 
-                          fill="none" 
-                          viewBox="0 0 24 24" 
-                          stroke="currentColor"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={handleSubmit} 
-                        className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
-                        disabled={isSubmitting}
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            <span>Enviando...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Enviar</span>
-                            <svg 
-                              xmlns="http://www.w3.org/2000/svg" 
-                              className="h-4 w-4 ml-2" 
-                              fill="none" 
-                              viewBox="0 0 24 24" 
-                              stroke="currentColor"
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                            </svg>
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </>
+            {/* Botões de Navegação */}
+            <div className="flex justify-between pt-6">
+                  {hasStepDividers && !isFirstStep && (
+                <Button 
+                  onClick={prevStep} 
+                  variant="outline"
+                      className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>Anterior</span>
+                </Button>
+              )}
+                  
+                  {hasStepDividers && !isLastStep ? (
+                <Button 
+                  onClick={nextStep} 
+                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
+                >
+                  <span>Próximo</span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleSubmit} 
+                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span>Enviando...</span>
+                        </>
+                      ) : (
+                        <>
+                  <span>Enviar</span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4 ml-2" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                        </>
+                      )}
+                </Button>
               )}
             </div>
+              </>
+            )}
+          </div>
 
             {/* Coluna da Imagem - ocultar no modo embed e em dispositivos móveis */}
             {!isEmbedded && !isMobileDevice && (
-              <div className="hidden lg:block">
-                <div className="sticky top-8">
-                  <img
-                    src={form?.image_url || "/form-image.svg"}
-                    alt="Imagem do Formulário"
-                    className={`w-full h-auto rounded-2xl object-cover shadow-lg border ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-300'}`}
-                    onError={(e) => {
-                      console.error("Erro ao carregar imagem:", e);
-                      e.currentTarget.src = "/form-image.svg";
-                    }}
-                  />
-                  <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                    <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                      Sobre este formulário
-                    </h3>
-                    <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                      Complete todos os campos necessários. Suas respostas são importantes
-                      para nós.
-                    </p>
-                  </div>
-                </div>
+          <div className="hidden lg:block">
+            <div className="sticky top-8">
+              <img
+                src={form?.image_url || "/form-image.svg"}
+                alt="Imagem do Formulário"
+                  className={`w-full h-auto rounded-2xl object-cover shadow-lg border ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-300'}`}
+                onError={(e) => {
+                  console.error("Erro ao carregar imagem:", e);
+                  e.currentTarget.src = "/form-image.svg";
+                }}
+              />
+                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                  Sobre este formulário
+                </h3>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                  Complete todos os campos necessários. Suas respostas são importantes
+                  para nós.
+                </p>
               </div>
-            )}
+            </div>
           </div>
+          )}
         </div>
+      </div>
       )}
-      
+
       {/* Card de Sucesso */}
       <SuccessCard 
         open={showSuccess} 
