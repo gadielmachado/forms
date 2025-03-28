@@ -164,7 +164,19 @@ const ViewForm = () => {
         // Primeiro, verificar se o formulário existe através do endpoint dedicado com SERVICE_ROLE
         console.log("[ViewForm] Verificando existência do formulário via API dedicada com SERVICE_ROLE...");
         try {
-          const formCheckResponse = await fetch(`/api/form-check?formId=${encodeURIComponent(id.trim())}`, {
+          // Construir URL com tenant_id se disponível para garantir isolamento dos dados
+          let apiUrl = `/api/form-check?formId=${encodeURIComponent(id.trim())}`;
+          
+          // Adicionar tenant_id à URL se estiver disponível
+          if (effectiveTenantId) {
+            apiUrl += `&tenant_id=${encodeURIComponent(effectiveTenantId)}`;
+            console.log(`[ViewForm] Incluindo tenant_id na verificação: ${effectiveTenantId}`);
+          } else if (currentTenant?.id) {
+            apiUrl += `&tenant_id=${encodeURIComponent(currentTenant.id)}`;
+            console.log(`[ViewForm] Incluindo tenant_id do contexto: ${currentTenant.id}`);
+          }
+          
+          const formCheckResponse = await fetch(apiUrl, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
@@ -180,6 +192,10 @@ const ViewForm = () => {
             // Se o formulário definitivamente não existe, lançar erro imediatamente
             console.error(`[ViewForm] Confirmado que o formulário com ID ${id} não existe no banco de dados`);
             throw new Error(`Formulário não encontrado com ID: ${id}`);
+          } else if (formCheckResult.exists && formCheckResult.accessible === false) {
+            // Formulário existe mas pertence a outro tenant
+            console.error(`[ViewForm] Formulário existe mas pertence ao tenant: ${formCheckResult.actualTenant}, não ao tenant: ${formCheckResult.requestedTenant}`);
+            throw new Error(`Você não tem permissão para acessar este formulário. O formulário pertence a outra organização.`);
           } else {
             console.log("[ViewForm] Formulário encontrado via SERVICE_ROLE API:", formCheckResult.form);
             

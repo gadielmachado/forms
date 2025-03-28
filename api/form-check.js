@@ -20,12 +20,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Obter o ID do formulário da query
-    const { formId } = req.query;
+    // Obter o ID do formulário e tenant_id (opcional) da query
+    const { formId, tenant_id } = req.query;
     
     if (!formId) {
       return res.status(400).json({ error: 'ID do formulário não fornecido' });
     }
+
+    console.log(`Verificando formulário com ID: ${formId}${tenant_id ? `, Tenant ID: ${tenant_id}` : ''}`);
 
     // Inicializar o cliente Supabase com a URL e a chave de serviço
     const supabaseUrl = process.env.SUPABASE_URL || 'https://pdlsbcxkbszahcmaluds.supabase.co';
@@ -43,14 +45,20 @@ export default async function handler(req, res) {
     console.log('Criando cliente Supabase com chave de serviço');
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`Verificando existência do formulário com ID: ${formId} (usando chave de serviço)`);
-    
-    // A chave de serviço ignora as restrições RLS e pode acessar qualquer registro
-    const { data, error } = await supabase
+    // Construir a consulta com base nos parâmetros fornecidos
+    let query = supabase
       .from('forms')
       .select('id, name, tenant_id, user_id, created_at, fields')
       .eq('id', formId.trim())
       .limit(1);
+    
+    // Se um tenant_id foi fornecido, adicionar filtro para garantir isolamento dos dados
+    if (tenant_id) {
+      query = query.eq('tenant_id', tenant_id.trim());
+    }
+    
+    // Executar a consulta
+    const { data, error } = await query;
 
     if (error) {
       console.error('Erro ao buscar formulário:', error);
@@ -58,6 +66,28 @@ export default async function handler(req, res) {
     }
 
     if (!data || data.length === 0) {
+      // Se tenant_id foi fornecido, tentar buscar novamente sem o filtro para diagnóstico
+      if (tenant_id) {
+        const { data: checkData } = await supabase
+          .from('forms')
+          .select('id, tenant_id')
+          .eq('id', formId.trim())
+          .limit(1);
+        
+        if (checkData && checkData.length > 0) {
+          // Formulário existe, mas pertence a outro tenant
+          console.log(`Formulário existe mas pertence ao tenant: ${checkData[0].tenant_id}, não ao tenant: ${tenant_id}`);
+          return res.status(403).json({ 
+            exists: true,
+            accessible: false,
+            message: 'Formulário existe mas pertence a outro tenant', 
+            formId,
+            requestedTenant: tenant_id,
+            actualTenant: checkData[0].tenant_id
+          });
+        }
+      }
+      
       console.log(`Formulário com ID ${formId} não encontrado`);
       return res.status(404).json({ 
         exists: false, 
@@ -70,6 +100,7 @@ export default async function handler(req, res) {
     console.log(`Formulário com ID ${formId} encontrado com sucesso`);
     return res.status(200).json({
       exists: true,
+      accessible: true,
       formId,
       form: data[0],
       message: 'Formulário encontrado'
