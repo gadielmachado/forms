@@ -161,6 +161,34 @@ const ViewForm = () => {
       }
 
       try {
+        // Primeiro, verificar se o formulário existe através do endpoint dedicado
+        console.log("[ViewForm] Verificando existência do formulário via API dedicada...");
+        try {
+          const formCheckResponse = await fetch(`/api/form-check?formId=${encodeURIComponent(id.trim())}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const formCheckResult = await formCheckResponse.json();
+          
+          if (!formCheckResponse.ok) {
+            console.warn("[ViewForm] API de verificação retornou erro:", formCheckResult);
+            console.log("[ViewForm] Continuando com método padrão de consulta...");
+          } else if (!formCheckResult.exists) {
+            // Se o formulário definitivamente não existe, lançar erro imediatamente
+            console.error(`[ViewForm] Confirmado que o formulário com ID ${id} não existe no banco de dados`);
+            throw new Error(`Formulário não encontrado com ID: ${id}`);
+          } else {
+            console.log("[ViewForm] Confirmado que o formulário existe:", formCheckResult.form);
+          }
+        } catch (checkError) {
+          // Se a API falhar, apenas registrar e continuar com o método padrão
+          console.warn("[ViewForm] Erro ao verificar formulário via API dedicada:", checkError);
+          console.log("[ViewForm] Continuando com método padrão de consulta...");
+        }
+
         // Adicionar mais logs de depuração
         console.log(`[ViewForm-Debug] Detalhes da requisição: URL=${window.location.href}, Mobile=${isMobileDevice}, Embed=${isEmbedded}`);
         console.log(`[ViewForm-Debug] Usando ID do formulário: ${id}`);
