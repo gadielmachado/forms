@@ -4,12 +4,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "installCommand": "npm install",
-  "builds": [
-    { 
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    }
-  ],
   "routes": [
     { "src": "/api/openai", "dest": "/api/openai.js" },
     { "handle": "filesystem" },

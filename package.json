@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "vercel-build": "vite build",
+    "build": "vite build --emptyOutDir",
+    "vercel-build": "ROLLUP_NATIVE=false vite build --emptyOutDir",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc",
