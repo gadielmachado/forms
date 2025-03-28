@@ -640,8 +640,8 @@ const ViewForm = () => {
       console.log('Buscando email do administrador...');
       const { data: settings, error: settingsError } = await supabase
         .from('settings')
-        .select('admin_email')
-        .eq('id', 1)
+        .select('admin_email, redirect_url')
+        .eq('tenant_id', tenantId)
         .single();
 
       if (settingsError) {
@@ -715,12 +715,52 @@ const ViewForm = () => {
         
         console.log('Email enviado com sucesso:', emailResult.status, emailResult.text);
         
-        // Tudo concluído com sucesso
-        toast({
-          title: "Sucesso!",
-          description: "Suas respostas foram enviadas e a notificação por email foi processada.",
-          variant: "default",
-        });
+        // Depois do envio bem-sucedido, verificar se existe uma URL de redirecionamento
+        // Buscar as configurações do tenant
+        const { data: settings, error: settingsError } = await supabase
+          .from('settings')
+          .select('admin_email, redirect_url')
+          .eq('tenant_id', tenantId)
+          .single();
+
+        if (!settingsError && settings?.redirect_url) {
+          // Se tiver uma URL de redirecionamento configurada, redirecionar após um pequeno delay
+          const redirectUrl = settings.redirect_url;
+          
+          // Primeiro mostrar o alerta de sucesso
+          toast({
+            title: "Sucesso!",
+            description: "Suas respostas foram enviadas. Você será redirecionado em instantes.",
+            variant: "default",
+          });
+          
+          // Definir um pequeno delay antes de redirecionar para que o usuário possa ver a mensagem
+          setTimeout(() => {
+            // Verificar se é uma URL válida
+            try {
+              // Verificar se é uma URL válida tentando criar um objeto URL
+              new URL(redirectUrl);
+              
+              // Redirecionar para a URL configurada
+              window.location.href = redirectUrl;
+            } catch (urlError) {
+              console.error("URL de redirecionamento inválida:", urlError);
+              // Continuar com o comportamento padrão sem redirecionamento
+              setFormResponses({});
+              setCurrentStep(1);
+              setShowSuccess(true);
+            }
+          }, 1500); // Redirecionamento após 1,5 segundos
+          
+          // Retornar aqui para não executar o comportamento padrão
+          return;
+        }
+
+        // Comportamento padrão (sem redirecionamento)
+        setFormResponses({});
+        setCurrentStep(1);
+        setShowSuccess(true);
+
       } catch (emailError: any) {
         // Melhorar o log de erro para mais detalhes
         console.error('Erro detalhado ao enviar email:', emailError);
@@ -733,10 +773,6 @@ const ViewForm = () => {
           variant: "destructive",
         });
       }
-
-      setFormResponses({});
-      setCurrentStep(1);
-      setShowSuccess(true);
 
     } catch (error: any) {
       console.error('Erro detalhado ao processar envio:', error);
