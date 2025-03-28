@@ -185,11 +185,12 @@ const ViewForm = () => {
         if (!data || data.length === 0) {
           console.log("[ViewForm-Debug] Tentando abordagem alternativa de consulta...");
           
-          // Segunda tentativa usando like em vez de eq
+          // Segunda tentativa usando abordagem alternativa
+          // Não usar ILIKE com UUID, pois causa erro "operator does not exist: uuid ~~* unknown"
           const retryResult = await supabase
             .from("forms")
             .select("*")
-            .filter("id", "ilike", id.trim())
+            .eq("id", id.trim())
             .limit(1);
             
           if (retryResult.error) {
