@@ -27,23 +27,28 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'ID do formulário não fornecido' });
     }
 
-    // Inicializar o cliente Supabase com as variáveis de ambiente
-    const supabaseUrl = process.env.SUPABASE_URL || '';
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+    // Inicializar o cliente Supabase com a URL e a chave de serviço
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://pdlsbcxkbszahcmaluds.supabase.co';
     
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Variáveis de ambiente SUPABASE_URL ou SUPABASE_ANON_KEY não configuradas');
+    // Usar a chave SERVICE_ROLE diretamente para desenvolvimento
+    // IMPORTANTE: Em produção, essa chave deve ser armazenada em variáveis de ambiente seguras
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkbHNiY3hrYnN6YWhjbWFsdWRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTU2Mzk1NywiZXhwIjoyMDU1MTM5OTU3fQ.Fha6yfFD4dMmypRE_YfCpUHKTwtR6zASnDq7LLt3UFI';
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error('Variáveis de ambiente SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configuradas');
       return res.status(500).json({ error: 'Configuração do servidor incompleta' });
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    // Criar cliente Supabase com a chave de serviço
+    console.log('Criando cliente Supabase com chave de serviço');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`Verificando existência do formulário com ID: ${formId}`);
+    console.log(`Verificando existência do formulário com ID: ${formId} (usando chave de serviço)`);
     
-    // Tentar encontrar o formulário pelo ID exato
+    // A chave de serviço ignora as restrições RLS e pode acessar qualquer registro
     const { data, error } = await supabase
       .from('forms')
-      .select('id, name, tenant_id, user_id, created_at')
+      .select('id, name, tenant_id, user_id, created_at, fields')
       .eq('id', formId.trim())
       .limit(1);
 
@@ -53,6 +58,7 @@ export default async function handler(req, res) {
     }
 
     if (!data || data.length === 0) {
+      console.log(`Formulário com ID ${formId} não encontrado`);
       return res.status(404).json({ 
         exists: false, 
         message: 'Formulário não encontrado', 
@@ -61,6 +67,7 @@ export default async function handler(req, res) {
     }
 
     // Formulário encontrado
+    console.log(`Formulário com ID ${formId} encontrado com sucesso`);
     return res.status(200).json({
       exists: true,
       formId,

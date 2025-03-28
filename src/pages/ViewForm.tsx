@@ -161,8 +161,8 @@ const ViewForm = () => {
       }
 
       try {
-        // Primeiro, verificar se o formulário existe através do endpoint dedicado
-        console.log("[ViewForm] Verificando existência do formulário via API dedicada...");
+        // Primeiro, verificar se o formulário existe através do endpoint dedicado com SERVICE_ROLE
+        console.log("[ViewForm] Verificando existência do formulário via API dedicada com SERVICE_ROLE...");
         try {
           const formCheckResponse = await fetch(`/api/form-check?formId=${encodeURIComponent(id.trim())}`, {
             method: 'GET',
@@ -181,7 +181,40 @@ const ViewForm = () => {
             console.error(`[ViewForm] Confirmado que o formulário com ID ${id} não existe no banco de dados`);
             throw new Error(`Formulário não encontrado com ID: ${id}`);
           } else {
-            console.log("[ViewForm] Confirmado que o formulário existe:", formCheckResult.form);
+            console.log("[ViewForm] Formulário encontrado via SERVICE_ROLE API:", formCheckResult.form);
+            
+            // Converter os dados retornados pela API para o formato FormType
+            const apiForm = formCheckResult.form;
+            
+            // Processar os campos para garantir que estejam no formato correto
+            let processedFields: FormField[] = [];
+            if (apiForm.fields) {
+              if (typeof apiForm.fields === 'string') {
+                try {
+                  processedFields = JSON.parse(apiForm.fields) as FormField[];
+                } catch (e) {
+                  console.error("[ViewForm] Erro ao converter campos JSON:", e);
+                  processedFields = [];
+                }
+              } else if (Array.isArray(apiForm.fields)) {
+                processedFields = apiForm.fields as FormField[];
+              }
+            }
+            
+            // Retornar o formulário obtido via API
+            const formData: FormType = {
+              id: apiForm.id,
+              name: apiForm.name || "",
+              fields: processedFields,
+              image_url: apiForm.image_url,
+              tenant_id: apiForm.tenant_id || "",
+              user_id: apiForm.user_id,
+              created_at: apiForm.created_at,
+              updated_at: apiForm.updated_at
+            };
+            
+            console.log("[ViewForm] Formulário processado com sucesso via API:", formData);
+            return formData;
           }
         } catch (checkError) {
           // Se a API falhar, apenas registrar e continuar com o método padrão
@@ -189,7 +222,8 @@ const ViewForm = () => {
           console.log("[ViewForm] Continuando com método padrão de consulta...");
         }
 
-        // Adicionar mais logs de depuração
+        // Se não retornou acima, continuar com o método padrão usando o cliente Supabase
+        console.log(`[ViewForm-Debug] Tentando método padrão com Supabase client...`);
         console.log(`[ViewForm-Debug] Detalhes da requisição: URL=${window.location.href}, Mobile=${isMobileDevice}, Embed=${isEmbedded}`);
         console.log(`[ViewForm-Debug] Usando ID do formulário: ${id}`);
 
