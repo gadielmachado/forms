@@ -29,21 +29,21 @@ export default async function handler(req, res) {
 
     console.log(`Verificando formulário com ID: ${formId}${tenant_id ? `, Tenant ID: ${tenant_id}` : ''}`);
 
-    // Inicializar o cliente Supabase com a URL e a chave de serviço
+    // Inicializar o cliente Supabase com a URL e a chave anônima
     const supabaseUrl = process.env.SUPABASE_URL || 'https://pdlsbcxkbszahcmaluds.supabase.co';
     
-    // Usar a chave SERVICE_ROLE diretamente para desenvolvimento
-    // IMPORTANTE: Em produção, essa chave deve ser armazenada em variáveis de ambiente seguras
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkbHNiY3hrYnN6YWhjbWFsdWRzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczOTU2Mzk1NywiZXhwIjoyMDU1MTM5OTU3fQ.Fha6yfFD4dMmypRE_YfCpUHKTwtR6zASnDq7LLt3UFI';
+    // REVERTER PARA A CHAVE ANÔNIMA em vez da SERVICE_ROLE
+    // Isso vai fazer com que as políticas RLS sejam respeitadas novamente
+    const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
     
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Variáveis de ambiente SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY não configuradas');
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Variáveis de ambiente SUPABASE_URL ou SUPABASE_ANON_KEY não configuradas');
       return res.status(500).json({ error: 'Configuração do servidor incompleta' });
     }
 
-    // Criar cliente Supabase com a chave de serviço
-    console.log('Criando cliente Supabase com chave de serviço');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Criar cliente Supabase com a chave anônima para respeitar RLS
+    console.log('Criando cliente Supabase com chave anônima (RLS ativado)');
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
     // Construir a consulta com base nos parâmetros fornecidos
     let query = supabase

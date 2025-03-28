@@ -161,87 +161,10 @@ const ViewForm = () => {
       }
 
       try {
-        // Primeiro, verificar se o formulário existe através do endpoint dedicado com SERVICE_ROLE
-        console.log("[ViewForm] Verificando existência do formulário via API dedicada com SERVICE_ROLE...");
-        try {
-          // Construir URL com tenant_id se disponível para garantir isolamento dos dados
-          let apiUrl = `/api/form-check?formId=${encodeURIComponent(id.trim())}`;
-          
-          // Adicionar tenant_id à URL se estiver disponível
-          if (effectiveTenantId) {
-            apiUrl += `&tenant_id=${encodeURIComponent(effectiveTenantId)}`;
-            console.log(`[ViewForm] Incluindo tenant_id na verificação: ${effectiveTenantId}`);
-          } else if (currentTenant?.id) {
-            apiUrl += `&tenant_id=${encodeURIComponent(currentTenant.id)}`;
-            console.log(`[ViewForm] Incluindo tenant_id do contexto: ${currentTenant.id}`);
-          }
-          
-          const formCheckResponse = await fetch(apiUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          const formCheckResult = await formCheckResponse.json();
-          
-          if (!formCheckResponse.ok) {
-            console.warn("[ViewForm] API de verificação retornou erro:", formCheckResult);
-            console.log("[ViewForm] Continuando com método padrão de consulta...");
-          } else if (!formCheckResult.exists) {
-            // Se o formulário definitivamente não existe, lançar erro imediatamente
-            console.error(`[ViewForm] Confirmado que o formulário com ID ${id} não existe no banco de dados`);
-            throw new Error(`Formulário não encontrado com ID: ${id}`);
-          } else if (formCheckResult.exists && formCheckResult.accessible === false) {
-            // Formulário existe mas pertence a outro tenant
-            console.error(`[ViewForm] Formulário existe mas pertence ao tenant: ${formCheckResult.actualTenant}, não ao tenant: ${formCheckResult.requestedTenant}`);
-            throw new Error(`Você não tem permissão para acessar este formulário. O formulário pertence a outra organização.`);
-          } else {
-            console.log("[ViewForm] Formulário encontrado via SERVICE_ROLE API:", formCheckResult.form);
-            
-            // Converter os dados retornados pela API para o formato FormType
-            const apiForm = formCheckResult.form;
-            
-            // Processar os campos para garantir que estejam no formato correto
-            let processedFields: FormField[] = [];
-            if (apiForm.fields) {
-              if (typeof apiForm.fields === 'string') {
-                try {
-                  processedFields = JSON.parse(apiForm.fields) as FormField[];
-                } catch (e) {
-                  console.error("[ViewForm] Erro ao converter campos JSON:", e);
-                  processedFields = [];
-                }
-              } else if (Array.isArray(apiForm.fields)) {
-                processedFields = apiForm.fields as FormField[];
-              }
-            }
-            
-            // Retornar o formulário obtido via API
-            const formData: FormType = {
-              id: apiForm.id,
-              name: apiForm.name || "",
-              fields: processedFields,
-              image_url: apiForm.image_url,
-              tenant_id: apiForm.tenant_id || "",
-              user_id: apiForm.user_id,
-              created_at: apiForm.created_at,
-              updated_at: apiForm.updated_at
-            };
-            
-            console.log("[ViewForm] Formulário processado com sucesso via API:", formData);
-            return formData;
-          }
-        } catch (checkError) {
-          // Se a API falhar, apenas registrar e continuar com o método padrão
-          console.warn("[ViewForm] Erro ao verificar formulário via API dedicada:", checkError);
-          console.log("[ViewForm] Continuando com método padrão de consulta...");
-        }
-
-        // Se não retornou acima, continuar com o método padrão usando o cliente Supabase
-        console.log(`[ViewForm-Debug] Tentando método padrão com Supabase client...`);
+        // Adicionar logs de depuração
         console.log(`[ViewForm-Debug] Detalhes da requisição: URL=${window.location.href}, Mobile=${isMobileDevice}, Embed=${isEmbedded}`);
         console.log(`[ViewForm-Debug] Usando ID do formulário: ${id}`);
+        console.log(`[ViewForm-Debug] Tenant atual: ${effectiveTenantId || currentTenant?.id || 'não definido'}`);
 
         // MODIFICAÇÃO: Não usar .single() para evitar erro de múltiplas linhas
         let { data, error } = await supabase
