@@ -35,6 +35,9 @@ interface FormType {
   fields: FormField[];
   image_url: string | null;
   tenant_id?: string;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface FormAnalytics {
@@ -158,44 +161,93 @@ const ViewForm = () => {
       }
 
       try {
-        // Buscar o formulário usando maybeSingle() em vez de single()
-      const { data, error } = await supabase
-        .from("forms")
-        .select("*")
-        .eq("id", id)
-          .maybeSingle();
+        // Adicionar mais logs de depuração
+        console.log(`[ViewForm-Debug] Detalhes da requisição: URL=${window.location.href}, Mobile=${isMobileDevice}, Embed=${isEmbedded}`);
+        console.log(`[ViewForm-Debug] Usando ID do formulário: ${id}`);
 
-      if (error) {
-          console.error("[ViewForm] Erro do Supabase ao buscar formulário:", error);
-          throw new Error(`Erro ao carregar formulário: ${error.message}`);
-      }
+        // Usar eq para comparação exata do ID
+        let { data, error } = await supabase
+          .from("forms")
+          .select("*")
+          .eq("id", id.trim()) // Garantir que o ID esteja sem espaços
+          .single();
 
-      if (!data) {
-        console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
-        throw new Error(`Formulário não encontrado com ID: ${id}`);
-      }
+        // Verificar os resultados detalhadamente
+        console.log(`[ViewForm-Debug] Resposta do Supabase: Status=${error ? 'Erro' : 'Sucesso'}`);
+        if (error) {
+          console.error("[ViewForm] Erro detalhado do Supabase:", error);
+          console.error(`[ViewForm] Código de erro: ${error.code}, Mensagem: ${error.message}, Detalhes: ${error.details}`);
+          
+          // Tentar nova abordagem se a primeira falhar
+          console.log("[ViewForm-Debug] Tentando abordagem alternativa de consulta...");
+          
+          // Segunda tentativa usando like em vez de eq
+          const retryResult = await supabase
+            .from("forms")
+            .select("*")
+            .filter("id", "ilike", id.trim())
+            .limit(1);
+            
+          if (retryResult.error) {
+            console.error("[ViewForm] Erro na segunda tentativa:", retryResult.error);
+            throw new Error(`Erro ao carregar formulário: ${error.message}`);
+          }
+          
+          if (retryResult.data && retryResult.data.length > 0) {
+            console.log("[ViewForm-Debug] Formulário encontrado na segunda tentativa:", retryResult.data[0]);
+            data = retryResult.data[0];
+          } else {
+            console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
+            throw new Error(`Formulário não encontrado com ID: ${id}`);
+          }
+        }
 
-        // Verificar se o campo fields é válido e tentar reparar se necessário
+        if (!data) {
+          console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
+          throw new Error(`Formulário não encontrado com ID: ${id}`);
+        }
+
+        // Verificar e tratar a estrutura de dados antes de retornar
+        let processedFields: FormField[] = [];
         if (!data.fields || !Array.isArray(data.fields)) {
           console.warn("[ViewForm] Formulário com estrutura inválida:", data);
           
           // Tentar converter se for uma string JSON
           if (typeof data.fields === 'string') {
             try {
-              data.fields = JSON.parse(data.fields);
-              console.log("[ViewForm] Campos JSON convertidos com sucesso:", data.fields);
+              const parsedFields = JSON.parse(data.fields);
+              if (Array.isArray(parsedFields)) {
+                processedFields = parsedFields as FormField[];
+              }
+              console.log("[ViewForm] Campos JSON convertidos com sucesso:", processedFields);
             } catch (e) {
               console.error("[ViewForm] Erro ao converter campos JSON:", e);
-              data.fields = [];
+              processedFields = [];
             }
           } else {
             console.warn("[ViewForm] Inicializando fields como array vazio");
-            data.fields = [];
+            processedFields = [];
           }
+        } else {
+          // Se já for um array, usar diretamente
+          processedFields = data.fields as unknown as FormField[];
         }
 
-      console.log("[ViewForm] Formulário encontrado:", data);
-      return data as FormType;
+        console.log("[ViewForm] Formulário encontrado:", data);
+        
+        // Converter explicitamente para o formato correto
+        const formData: FormType = {
+          id: data.id,
+          name: data.name || "",
+          fields: processedFields,
+          image_url: data.image_url,
+          tenant_id: (data as any).tenant_id || "",
+          user_id: data.user_id,
+          created_at: data.created_at,
+          updated_at: data.updated_at
+        };
+        
+        return formData;
       } catch (error) {
         // Melhorar a mensagem de erro para incluir mais detalhes
         const errorMessage = error instanceof Error 
@@ -638,28 +690,80 @@ const ViewForm = () => {
 
       // Buscar o email do administrador
       console.log('Buscando email do administrador...');
-      const { data: settings, error: settingsError } = await supabase
-        .from('settings')
-        .select('admin_email')
-        .eq('id', 1)
-        .single();
-
-      if (settingsError) {
-        console.error('Erro ao buscar configurações:', settingsError);
-        toast({
-          title: "Aviso",
-          description: "Suas respostas foram salvas, mas não foi possível enviar notificação por email.",
-          variant: "destructive",
-        });
-        
-        setFormResponses({});
-        setCurrentStep(1);
-        setShowSuccess(true);
-        return;
-      }
-
-      const adminEmail = settings?.admin_email;
-      console.log('Email do administrador:', adminEmail);
+      
+      // Função segura para buscar configurações
+      const fetchAdminEmail = async () => {
+        try {
+          // Tentar várias abordagens para garantir que encontramos o email
+          
+          // 1. Tentar buscar da tabela settings, se ela existir
+          let adminEmail = null;
+          try {
+            const settingsResponse = await fetch('/api/settings', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            });
+            
+            if (settingsResponse.ok) {
+              const settings = await settingsResponse.json();
+              adminEmail = settings.admin_email;
+              console.log('Email obtido via API:', adminEmail);
+            }
+          } catch (apiError) {
+            console.warn('Não foi possível obter email via API:', apiError);
+          }
+          
+          // 2. Se não funcionou, tentar uma abordagem direta com o ID do tenant
+          if (!adminEmail && tenantId) {
+            try {
+              // Consulta específica com tenant_id - usando rota alternativa para evitar erros de tipagem
+              const response = await fetch(`/api/tenant_settings?tenant_id=${tenantId}`, {
+                method: 'GET'
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result?.admin_email) {
+                  adminEmail = result.admin_email;
+                  console.log('Email obtido via API de tenant_settings:', adminEmail);
+                }
+              }
+            } catch (tenantError) {
+              console.warn('Não foi possível obter email via tenant_settings API:', tenantError);
+            }
+          }
+          
+          // 3. Tentar buscar perfil do usuário como último recurso
+          if (!adminEmail && tenantId) {
+            try {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', tenantId)
+                .single();
+                
+              if (profile?.email) {
+                adminEmail = profile.email;
+                console.log('Email obtido do perfil:', adminEmail);
+              }
+            } catch (profileError) {
+              console.warn('Não foi possível obter email via profiles:', profileError);
+            }
+          }
+          
+          // Retornar o email encontrado ou null
+          return adminEmail;
+        } catch (error) {
+          console.error('Erro ao buscar email do administrador:', error);
+          return null;
+        }
+      };
+      
+      // Buscar o email
+      const adminEmail = await fetchAdminEmail();
+      console.log('Email do administrador final:', adminEmail);
 
       if (!adminEmail) {
         console.warn('Email do administrador não configurado');
@@ -1132,7 +1236,7 @@ const ViewForm = () => {
                 variant="default"
                 size="sm"
                 onClick={() => window.history.back()}
-                className={`${currentTheme.colors.primaryButton}`}
+                className={currentTheme.colors.button}
               >
                 Voltar
               </Button>
@@ -1220,6 +1324,34 @@ const ViewForm = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, [isDebugMode]);
+
+  // Adicionar uma função utilitária para extrair o tenant_id de forma segura
+  const extractTenantId = async (formId: string | undefined): Promise<string | undefined> => {
+    if (!formId) return undefined;
+    
+    try {
+      // Tentar extrair de forma segura
+      const { data, error } = await supabase
+        .from("forms")
+        .select("user_id") // user_id é geralmente usado como tenant_id
+        .eq("id", formId)
+        .single();
+        
+      if (error) {
+        console.warn("Erro ao buscar tenant_id do formulário:", error);
+        return undefined;
+      }
+      
+      if (data && 'user_id' in data) {
+        return data.user_id as string;
+      }
+      
+      return undefined;
+    } catch (e) {
+      console.error("Erro ao extrair tenant_id:", e);
+      return undefined;
+    }
+  };
 
   return (
     <div className={cn(
