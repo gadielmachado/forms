@@ -1,15 +1,11 @@
 {
   "version": 2,
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
   "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node",
-      "config": { 
-        "buildCommand": "npm install && npm run build",
-        "outputDirectory": "dist" 
-      }
-    },
-    {
+    { 
       "src": "api/**/*.js",
       "use": "@vercel/node"
     }

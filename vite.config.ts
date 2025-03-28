@@ -24,5 +24,16 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     assetsDir: "assets",
     emptyOutDir: true,
+    // Configurações específicas para ajudar no build do Vercel
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Ignora avisos específicos que podem causar falhas no build
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
+        warn(warning);
+      },
+    },
+    // Desativa o uso de builders nativos que podem causar problemas
+    target: 'es2015',
+    sourcemap: mode !== 'production'
   }
 }));
