@@ -14,6 +14,9 @@ import { Label } from "@/components/ui/label";
 import emailjs from '@emailjs/browser';
 import { useTenant } from "@/contexts/TenantContext";
 import { useLocation } from "react-router-dom";
+import { Copy, CheckCheck } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 // Configuração do Supabase
 const supabaseUrl = 'https://pdlsbcxkbszahcmaluds.supabase.co';
@@ -23,6 +26,13 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // ID fixo para configuração global
 const SETTINGS_ID = 1;
 
+// Interface para formulários
+interface Form {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export default function Integrations() {
   const { currentTenant } = useTenant();
   const [adminEmail, setAdminEmail] = useState("");
@@ -31,9 +41,17 @@ export default function Integrations() {
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const isEmbedded = new URLSearchParams(location.search).get('embed') === 'true';
+  
+  // Estados para a funcionalidade de código de incorporação
+  const [forms, setForms] = useState<Form[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState<string>("");
+  const [embedCode, setEmbedCode] = useState<string>("");
+  const [isLoadingForms, setIsLoadingForms] = useState(false);
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
 
   useEffect(() => {
     loadAdminEmail();
+    loadForms();
   }, []);
 
   useEffect(() => {
@@ -94,6 +112,109 @@ export default function Integrations() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Função para carregar os formulários do tenant atual
+  const loadForms = async () => {
+    if (!currentTenant) return;
+
+    try {
+      setIsLoadingForms(true);
+      console.log("Carregando formulários...");
+
+      const { data, error } = await supabase
+        .from('forms')
+        .select('id, name, created_at')
+        .eq('tenant_id', currentTenant.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        setForms(data);
+        console.log("Formulários carregados:", data.length);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar formulários:", error);
+      toast({
+        title: "Erro ao carregar formulários",
+        description: "Não foi possível carregar seus formulários. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingForms(false);
+    }
+  };
+
+  // Função para gerar o código de incorporação
+  const generateEmbedCode = (formId: string) => {
+    // Obter a URL base do site atual
+    const { protocol, host } = window.location;
+    const baseUrl = `${protocol}//${host}`;
+    
+    // Criar o código de incorporação usando iframe
+    const code = `<iframe 
+  src="${baseUrl}/form/view/${formId}?embed=true"
+  width="100%" 
+  height="600px" 
+  style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);" 
+  title="Formulário Soren"
+  allow="accelerometer; camera; microphone; geolocation" 
+  loading="lazy">
+</iframe>
+
+<script>
+  // Script para ajustar a altura do iframe automaticamente
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'soren-form-height') {
+      const iframe = document.querySelector('iframe[src*="view/${formId}"]');
+      if (iframe) {
+        iframe.style.height = e.data.height + 'px';
+      }
+    }
+  });
+</script>`;
+    
+    return code;
+  };
+
+  // Handler para quando um formulário é selecionado
+  const handleFormSelection = (formId: string) => {
+    setSelectedFormId(formId);
+    if (formId) {
+      const code = generateEmbedCode(formId);
+      setEmbedCode(code);
+    } else {
+      setEmbedCode("");
+    }
+    setCopiedToClipboard(false);
+  };
+
+  // Função para copiar o código para a área de transferência
+  const copyEmbedCode = async () => {
+    if (!embedCode) return;
+    
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setCopiedToClipboard(true);
+      toast({
+        title: "Código copiado!",
+        description: "O código de incorporação foi copiado para a área de transferência.",
+        variant: "success",
+      });
+      
+      // Resetar o ícone após 3 segundos
+      setTimeout(() => {
+        setCopiedToClipboard(false);
+      }, 3000);
+    } catch (error) {
+      console.error("Erro ao copiar para a área de transferência:", error);
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar o código. Selecione-o manualmente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -248,6 +369,7 @@ export default function Integrations() {
       <Card className="p-6">
         <h2 className="text-xl font-semibold mb-4">Integrações</h2>
         <div className="grid gap-6">
+          {/* Card de Integração de Email */}
           <Card>
             <CardHeader>
               <CardTitle>Integração de Email</CardTitle>
@@ -289,6 +411,76 @@ export default function Integrations() {
                   Testar EmailJS
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Novo Card para Código de Incorporação */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Código de Incorporação</CardTitle>
+              <CardDescription>
+                Incorpore seus formulários em outros sites como WordPress, Wix, Framer ou qualquer projeto com código
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="formSelect">Selecione um formulário</Label>
+                <Select 
+                  value={selectedFormId}
+                  onValueChange={handleFormSelection}
+                >
+                  <SelectTrigger id="formSelect" disabled={isLoadingForms}>
+                    <SelectValue placeholder="Selecione um formulário" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {forms.map(form => (
+                      <SelectItem key={form.id} value={form.id}>
+                        {form.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedFormId && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="embedCode">Código de incorporação</Label>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={copyEmbedCode}
+                      disabled={!embedCode}
+                      className="h-8 px-2"
+                    >
+                      {copiedToClipboard ? (
+                        <CheckCheck className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                      <span className="ml-1 text-xs">
+                        {copiedToClipboard ? "Copiado!" : "Copiar"}
+                      </span>
+                    </Button>
+                  </div>
+                  <Textarea
+                    id="embedCode"
+                    value={embedCode}
+                    readOnly
+                    rows={8}
+                    className="font-mono text-sm bg-gray-50 dark:bg-gray-900"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Cole este código HTML em qualquer lugar onde você queira exibir o formulário. O iframe se ajustará automaticamente à altura do conteúdo.
+                  </p>
+                </div>
+              )}
+
+              {!selectedFormId && (
+                <div className="rounded-md bg-blue-50 dark:bg-blue-950 p-4 text-sm text-blue-700 dark:text-blue-300">
+                  <p>Selecione um formulário para gerar o código de incorporação.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
