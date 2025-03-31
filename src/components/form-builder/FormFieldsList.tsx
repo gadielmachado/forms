@@ -412,6 +412,7 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
     { value: "headline", label: "Título Principal", icon: <Type className="h-4 w-4" /> },
     { value: "text", label: "Texto Curto", icon: <TextCursor className="h-4 w-4" /> },
     { value: "textarea", label: "Texto Longo", icon: <AlignLeft className="h-4 w-4" /> },
+    { value: "description", label: "Descrição", icon: <MessageSquare className="h-4 w-4" /> },
     { value: "email", label: "Email", icon: <Mail className="h-4 w-4" /> },
     { value: "phone", label: "Telefone", icon: <Phone className="h-4 w-4" /> },
     { value: "date", label: "Data", icon: <Calendar className="h-4 w-4" /> },

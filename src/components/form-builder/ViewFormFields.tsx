@@ -110,6 +110,12 @@ const ViewFormFields = ({ fields, formId }: ViewFormFieldsProps) => {
         return (
           <h1 className="text-3xl font-bold break-words">{field.label}</h1>
         );
+      case "description":
+        return (
+          <div className="py-2">
+            <p className="text-gray-600 text-base">{field.label}</p>
+          </div>
+        );
       case "textarea":
         return (
           <Textarea

@@ -150,9 +150,9 @@ const FormSuccessModal = ({
                 <Button
                   onClick={onRestart}
                   variant="outline"
-                  className="flex items-center gap-1"
+                  className="flex items-center gap-1 text-gray-700 border-gray-300 hover:text-gray-900"
                 >
-                  <ArrowLeft className="w-4 h-4" />
+                  <ArrowLeft className="w-4 h-4 text-gray-700" />
                   <span>Voltar ao Início</span>
                 </Button>
               )}

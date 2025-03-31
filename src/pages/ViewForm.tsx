@@ -3,7 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, Clock, Check } from "lucide-react";
+import { Send, Loader2, Clock, Check, Mail, Phone } from "lucide-react";
 import { toast, useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import FormSuccessModal from "@/components/FormSuccessModal";
@@ -813,6 +813,8 @@ const ViewForm = () => {
 
   const getPlaceholder = (field: any) => {
     switch (field.type) {
+      case "email":
+        return "seuemail@exemplo.com";
       case "date":
         return "dd/mm/aaaa";
       case "time":
@@ -820,7 +822,13 @@ const ViewForm = () => {
       case "url":
         return "https://seulink.com";
       case "phone":
-        return "(xx) xxxxx-xxxx";
+        return "(DDD) 0000-0000";
+      case "number":
+        return "Digite um número...";
+      case "textarea":
+        return "Digite seu texto aqui...";
+      case "text":
+        return "Digite aqui...";
       default:
         return "Digite aqui...";
     }
@@ -834,6 +842,17 @@ const ViewForm = () => {
       return (
         <div key={field.id} className="py-4">
           <h1 className={`text-3xl font-bold ${currentTheme.colors.text}`}>{field.label}</h1>
+        </div>
+      );
+    }
+
+    // Tratamento para campo de descrição
+    if (field.type === "description") {
+      return (
+        <div key={field.id} className="py-2">
+          <p className={`text-base ${currentTheme.mode === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+            {field.label}
+          </p>
         </div>
       );
     }
@@ -919,6 +938,44 @@ const ViewForm = () => {
               className="w-full"
             />
             <small className={`block mt-1 ${currentTheme.colors.text} text-xs`}>Formato: DD/MM/AAAA</small>
+          </div>
+        ) : field.type === "email" ? (
+          <div className="relative">
+            <div className="flex">
+              <span className={`inline-flex items-center px-3 rounded-l-lg border ${currentTheme.mode === 'dark' ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-300 bg-gray-50 text-gray-500'} border-r-0`}>
+                <Mail className="h-4 w-4" />
+              </span>
+              <input
+                type="email"
+                value={formResponses[field.id] || ""}
+                onChange={(e) => handleInputChange(field.id, e.target.value)}
+                className={`w-full px-4 py-3 rounded-r-lg border ${currentTheme.mode === 'dark' 
+                  ? 'border-gray-700 bg-gray-800 text-white placeholder-gray-500' 
+                  : 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:${extractMainColor(currentTheme.colors.text)} focus:border-${extractMainColor(currentTheme.colors.border)} transition-colors duration-200`}
+                placeholder={getPlaceholder(field)}
+                required={field.required}
+              />
+            </div>
+            <small className={`block mt-1 ${currentTheme.colors.text} text-xs`}>Formato: seuemail@exemplo.com</small>
+          </div>
+        ) : field.type === "phone" ? (
+          <div className="relative">
+            <div className="flex">
+              <span className={`inline-flex items-center px-3 rounded-l-lg border ${currentTheme.mode === 'dark' ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-300 bg-gray-50 text-gray-500'} border-r-0`}>
+                <Phone className="h-4 w-4" />
+              </span>
+              <input
+                type="tel"
+                value={formResponses[field.id] || ""}
+                onChange={(e) => handleInputChange(field.id, e.target.value)}
+                className={`w-full px-4 py-3 rounded-r-lg border ${currentTheme.mode === 'dark' 
+                  ? 'border-gray-700 bg-gray-800 text-white placeholder-gray-500' 
+                  : 'border-gray-300 bg-gray-50 text-gray-900 placeholder-gray-400'} focus:ring-2 focus:${extractMainColor(currentTheme.colors.text)} focus:border-${extractMainColor(currentTheme.colors.border)} transition-colors duration-200`}
+                placeholder={getPlaceholder(field)}
+                required={field.required}
+              />
+            </div>
+            <small className={`block mt-1 ${currentTheme.colors.text} text-xs`}>Formato: (DDD) 0000-0000</small>
           </div>
         ) : (
         <input

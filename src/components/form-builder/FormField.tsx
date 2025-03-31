@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { GripVertical, Copy, Trash2, Type, Phone, Calendar, Link as LinkIcon, Plus, Pencil, CheckSquare, MoreVertical, ArrowRight, Clock, AlertCircle } from "lucide-react";
+import { GripVertical, Copy, Trash2, Type, Phone, Calendar, Link as LinkIcon, Plus, Pencil, CheckSquare, MoreVertical, ArrowRight, Clock, AlertCircle, MessageSquare, Mail } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -161,6 +161,8 @@ const FormField = ({
     switch (type) {
       case "phone":
         return "(DDD) 0000-0000";
+      case "email":
+        return "seuemail@exemplo.com";
       case "date":
         return "DD/MM/AAAA";
       case "time":
@@ -169,6 +171,8 @@ const FormField = ({
         return "https://";
       case "headline":
         return "Digite o título principal aqui...";
+      case "description":
+        return "Digite aqui uma descrição ou instruções para o usuário...";
       default:
         return "Digite aqui...";
     }
@@ -176,6 +180,8 @@ const FormField = ({
 
   const getFieldIcon = () => {
     switch (type) {
+      case "email":
+        return <Mail className="h-4 w-4 text-indigo-500" />;
       case "phone":
         return <Phone className="h-4 w-4 text-blue-500" />;
       case "date":
@@ -186,6 +192,8 @@ const FormField = ({
         return <LinkIcon className="h-4 w-4 text-green-500" />;
       case "headline":
         return <Type className="h-4 w-4 text-indigo-500" />;
+      case "description":
+        return <MessageSquare className="h-4 w-4 text-teal-500" />;
       case "checkbox":
         return <CheckSquare className="h-4 w-4 text-orange-500" />;
       default:
@@ -231,6 +239,24 @@ const FormField = ({
               placeholder={getPlaceholder()}
               className="w-full bg-transparent text-3xl font-bold outline-none resize-none overflow-hidden border-none shadow-none focus-visible:ring-0"
               style={{ minHeight: '60px' }}
+            />
+          </div>
+        );
+      case "description":
+        return (
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 mb-1 opacity-70">
+              <div className="p-1 rounded-md bg-teal-100">
+                <MessageSquare className="h-4 w-4 text-teal-500" />
+              </div>
+              <span className="text-xs font-medium text-teal-600">Texto Descritivo</span>
+            </div>
+            <Textarea
+              value={label}
+              onChange={(e) => onLabelChange(e.target.value)}
+              placeholder="Digite aqui uma descrição ou instruções para o usuário..."
+              className="w-full bg-transparent text-base text-gray-600 outline-none resize-vertical overflow-hidden border-0 shadow-none focus-visible:ring-0"
+              style={{ minHeight: '80px' }}
             />
           </div>
         );
@@ -370,6 +396,7 @@ const FormField = ({
           <div className="space-y-3">
             <div className="flex items-center gap-2 mb-1 opacity-70">
               <div className={`p-1 rounded-md ${
+                type === "email" ? "bg-indigo-100" :
                 type === "phone" ? "bg-blue-100" : 
                 type === "date" ? "bg-purple-100" : 
                 type === "time" ? "bg-amber-100" :
@@ -378,6 +405,7 @@ const FormField = ({
                 {getFieldIcon()}
               </div>
               <span className={`text-xs font-medium ${
+                type === "email" ? "text-indigo-600" :
                 type === "phone" ? "text-blue-600" : 
                 type === "date" ? "text-purple-600" : 
                 type === "time" ? "text-amber-600" :
@@ -405,6 +433,7 @@ const FormField = ({
                 className={`rounded-xl ${isRequired ? 'border-red-300 focus-visible:ring-red-300' : 'border-primary/30 focus-visible:ring-primary/30'} pl-3 transition-all`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                {type === "email" && "E-mail"}
                 {type === "phone" && "Opcional"}
                 {type === "date" && "DD/MM/AAAA"}
                 {type === "time" && "HH:MM"}
