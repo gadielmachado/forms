@@ -1328,11 +1328,11 @@ const ViewForm = () => {
       ) : formError ? (
         renderErrorState()
       ) : (
-        <div className={isEmbedded || isMobileDevice 
+        <div className={isEmbedded 
           ? "max-w-full" 
           : "max-w-6xl mx-auto"
         }>
-          <div className={isEmbedded || isMobileDevice
+          <div className={isEmbedded
             ? "" 
             : "grid grid-cols-1 lg:grid-cols-2 gap-8"
           }>
@@ -1465,35 +1465,35 @@ const ViewForm = () => {
             )}
           </div>
 
-            {/* Coluna da Imagem - ocultar no modo embed e em dispositivos móveis */}
-            {!isEmbedded && !isMobileDevice && (
-          <div className="hidden lg:block">
-            <div className="sticky top-8">
-              <img
-                src={form?.image_url 
-                  ? (form.image_url.startsWith('http') 
-                      ? form.image_url 
-                      : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
-                  : "/form-image.svg"}
-                alt="Imagem do Formulário"
-                className="w-full h-auto rounded-2xl object-cover shadow-lg"
-                onError={(e) => {
-                  console.error("Erro ao carregar imagem:", e);
-                  e.currentTarget.src = "/form-image.svg";
-                }}
-              />
-                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                  Sobre este formulário
-                </h3>
-                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  Complete todos os campos necessários. Suas respostas são importantes
-                  para nós.
-                </p>
+            {/* Coluna da Imagem - no desktop aparece ao lado, no mobile embaixo */}
+            {!isEmbedded && (
+              <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
+                <div className={isMobileDevice ? "" : "sticky top-8"}>
+                  <img
+                    src={form?.image_url 
+                      ? (form.image_url.startsWith('http') 
+                          ? form.image_url 
+                          : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
+                      : "/form-image.svg"}
+                    alt="Imagem do Formulário"
+                    className="w-full h-auto rounded-2xl object-cover shadow-lg"
+                    onError={(e) => {
+                      console.error("Erro ao carregar imagem:", e);
+                      e.currentTarget.src = "/form-image.svg";
+                    }}
+                  />
+                  <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                    <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                      Sobre este formulário
+                    </h3>
+                    <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                      Complete todos os campos necessários. Suas respostas são importantes
+                      para nós.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-          )}
+            )}
         </div>
       </div>
       )}
