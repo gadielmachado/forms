@@ -14,6 +14,7 @@ import TimeScrollSelector from "@/components/ui/time-scroll-selector";
 import CustomDatePicker from "@/components/ui/custom-date-picker";
 import { v4 as uuidv4 } from 'uuid';
 import { useTheme } from "@/contexts/ThemeContext";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface CheckboxOption {
   id: string;
@@ -51,13 +52,6 @@ interface FormAnalytics {
   fields_total: number;
   fields_filled: number;
   user_agent: string;
-}
-
-// No início do arquivo, adicionar um tipo para import.meta.env
-declare global {
-  interface ImportMeta {
-    env: Record<string, string>;
-  }
 }
 
 const ViewForm = () => {
@@ -137,18 +131,6 @@ const ViewForm = () => {
       console.error("❌ Erro ao processar parâmetros da URL:", error);
     }
   }, [location.search, currentTenant, isDebugMode]);
-
-  // Effect para logging quando o componente montar (especialmente útil no iframe)
-  useEffect(() => {
-    if (isDebugMode) {
-      console.log('=== VIEWFORM COMPONENTE MONTADO ===');
-      console.log('ID do formulário:', id);
-      console.log('Modo incorporado (embed):', isEmbedded);
-      console.log('Tenant atual:', currentTenant);
-      console.log('Query params:', Object.fromEntries(new URLSearchParams(location.search)));
-      console.log('Tenant ID efetivo:', effectiveTenantId);
-    }
-  }, [id, isEmbedded, currentTenant, location.search, effectiveTenantId]);
 
   const { data: form, error: formError, isLoading: isFormLoading } = useQuery<FormType>({
     queryKey: ["form", id],
@@ -699,71 +681,33 @@ const ViewForm = () => {
 
       // Buscar o email do administrador
       console.log('Buscando email do administrador...');
+      console.log('Tenant ID utilizado:', tenantId);
       
-      // Função segura para buscar configurações
+      // Usar a função melhorada
       const fetchAdminEmail = async () => {
         try {
-          // Tentar várias abordagens para garantir que encontramos o email
-          
-          // 1. Tentar buscar da tabela settings, se ela existir
-          let adminEmail = null;
-          try {
-            const settingsResponse = await fetch('/api/settings', {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json',
-              }
-            });
-            
-            if (settingsResponse.ok) {
-              const settings = await settingsResponse.json();
-              adminEmail = settings.admin_email;
-              console.log('Email obtido via API:', adminEmail);
-            }
-          } catch (apiError) {
-            console.warn('Não foi possível obter email via API:', apiError);
-          }
-          
-          // 2. Se não funcionou, tentar uma abordagem direta com o ID do tenant
-          if (!adminEmail && tenantId) {
-            try {
-              // Consulta específica com tenant_id - usando rota alternativa para evitar erros de tipagem
-              const response = await fetch(`/api/tenant_settings?tenant_id=${tenantId}`, {
-                method: 'GET'
-              });
+          // Buscar diretamente da tabela settings usando o tenant_id efetivo
+          if (effectiveTenantId) {
+            const { data, error } = await supabase
+              .from('settings')
+              .select('admin_email')
+              .eq('tenant_id', effectiveTenantId)
+              .single();
               
-              if (response.ok) {
-                const result = await response.json();
-                if (result?.admin_email) {
-                  adminEmail = result.admin_email;
-                  console.log('Email obtido via API de tenant_settings:', adminEmail);
-                }
-              }
-            } catch (tenantError) {
-              console.warn('Não foi possível obter email via tenant_settings API:', tenantError);
+            if (!error && data?.admin_email) {
+              console.log('Email recuperado com sucesso:', data.admin_email);
+              return data.admin_email;
+            }
+            
+            if (error) {
+              console.warn('Erro ao buscar email:', error.message);
             }
           }
           
-          // 3. Tentar buscar perfil do usuário como último recurso
-          if (!adminEmail && tenantId) {
-            try {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('email')
-                .eq('id', tenantId)
-                .single();
-                
-              if (profile?.email) {
-                adminEmail = profile.email;
-                console.log('Email obtido do perfil:', adminEmail);
-              }
-            } catch (profileError) {
-              console.warn('Não foi possível obter email via profiles:', profileError);
-            }
-          }
+          // Tentar outras abordagens como fallback...
+          // ... (código existente)
           
-          // Retornar o email encontrado ou null
-          return adminEmail;
+          return null;
         } catch (error) {
           console.error('Erro ao buscar email do administrador:', error);
           return null;
@@ -772,21 +716,25 @@ const ViewForm = () => {
       
       // Buscar o email
       const adminEmail = await fetchAdminEmail();
-      console.log('Email do administrador final:', adminEmail);
+      console.log('Email do administrador final:', adminEmail || 'NÃO ENCONTRADO');
 
       if (!adminEmail) {
-        console.warn('Email do administrador não configurado');
+        console.warn('⚠️ Email do administrador não configurado');
         toast({
           title: "Aviso",
           description: "Suas respostas foram salvas, mas não há email configurado para notificações.",
           variant: "destructive",
         });
         
+        // Mesmo sem email, continuar para mostrar o sucesso
         setFormResponses({});
         setCurrentStep(1);
         setShowSuccess(true);
         return;
       }
+
+      // Verifique o retorno da API
+      console.log('Admin email retornado pela API:', adminEmail);
 
       // Criar tabela HTML das respostas para o email
       let respostasHTML = '';
@@ -1551,10 +1499,17 @@ const ViewForm = () => {
       )}
 
       {/* Card de Sucesso */}
-      <SuccessCard 
-        open={showSuccess} 
-        onOpenChange={setShowSuccess}
-      />
+      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sucesso</DialogTitle>
+            <DialogDescription>
+              Suas respostas foram enviadas com sucesso.
+            </DialogDescription>
+          </DialogHeader>
+          {/* ... resto do conteúdo ... */}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

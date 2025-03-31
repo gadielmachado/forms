@@ -42,6 +42,7 @@ const App = () => {
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
                   <Route path="/form/:id" element={<ViewForm />} />
+                  
                   <Route
                     element={
                       <ProtectedRoute>

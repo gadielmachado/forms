@@ -53,7 +53,11 @@ const Sidebar = ({ onLogout }: SidebarProps) => {
   return (
     <div className="flex h-full w-64 flex-col bg-gradient-to-b from-indigo-600 to-indigo-800 text-white">
       <div className="flex h-16 items-center px-6 border-b border-indigo-500/30">
-        <h1 className="text-xl font-semibold tracking-tight">Soren Forms</h1>
+        <img 
+          src="/images/logo_s.svg" 
+          alt="Soren Forms Logo" 
+          className="h-8"
+        />
       </div>
       <nav className="flex-1 space-y-1 px-4 py-4">
         {navigation.map((item) => {

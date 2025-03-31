@@ -58,6 +58,7 @@ interface FormFieldType {
   options?: string;
   checkboxOptions?: { id: string; label: string; isEditing: boolean }[];
   isStepDivider?: boolean;
+  required?: boolean;
 }
 
 interface FormFieldsListProps {
@@ -162,6 +163,14 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
     onFieldsChange(
       fields.map((field) =>
         field.id === id ? { ...field, label: newLabel } : field
+      )
+    );
+  };
+
+  const handleRequiredChange = (id: string, isRequired: boolean) => {
+    onFieldsChange(
+      fields.map((field) =>
+        field.id === id ? { ...field, required: isRequired } : field
       )
     );
   };
@@ -525,6 +534,7 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
                     id={field.id}
                     type={field.type}
                     label={field.label}
+                    required={field.required}
                     checkboxOptions={field.checkboxOptions}
                     onLabelChange={(value) => handleLabelChange(field.id, value)}
                     onDelete={() => handleDeleteField(field.id)}
@@ -541,6 +551,9 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
                     }
                     onMoveToStep={(fieldId, stepIndex) => 
                       handleMoveToStep(fieldId, stepIndex)
+                    }
+                    onRequiredChange={(isRequired) => 
+                      handleRequiredChange(field.id, isRequired)
                     }
                     totalSteps={totalSteps}
                     currentStep={currentStep}

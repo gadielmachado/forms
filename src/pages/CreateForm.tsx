@@ -22,6 +22,7 @@ interface FormFieldType {
   type: string;
   label: string;
   checkboxOptions?: CheckboxOption[]; // Adicione esta propriedade
+  required?: boolean; // Adicionar campo para controlar se é obrigatório
 }
 
 const CreateForm = () => {
@@ -34,14 +35,14 @@ const CreateForm = () => {
   const [initialForm, setInitialForm] = useState<any>(null);
   const [formName, setFormName] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [fields, setFields] = useState<FormFieldType[]>([{ id: "1", type: "text", label: "" }]);
+  const [fields, setFields] = useState<FormFieldType[]>([{ id: "1", type: "text", label: "", required: false }]);
   const [isLoading, setIsLoading] = useState(false);
 
   const queryClient = useQueryClient();
 
   const resetForm = () => {
     setFormName("");
-    setFields([{ id: "1", type: "text", label: "" }]);
+    setFields([{ id: "1", type: "text", label: "", required: false }]);
     setImageUrl(null);
   };
 
@@ -127,6 +128,9 @@ const CreateForm = () => {
       const cleanedFields = fields.map(field => {
         // Crie uma cópia profunda do campo para evitar referências
         const cleanField = { ...field };
+        
+        // Garantir que o valor required seja preservado
+        cleanField.required = field.required || false;
         
         // Tratamento específico para campos do tipo checkbox
         if (field.type === "checkbox") {
@@ -282,7 +286,8 @@ const CreateForm = () => {
               const processedField: FormFieldType = {
                 id: field.id || Math.random().toString(),
                 type: field.type || "text",
-                label: field.label || ""
+                label: field.label || "",
+                required: field.required || false
               };
               
               // Tratamento específico para campos checkbox
@@ -348,7 +353,7 @@ const CreateForm = () => {
             : [];
         } catch (e) {
           console.error("Erro ao processar campos do state:", e);
-          processedFields = [{ id: "1", type: "text", label: "" }];
+          processedFields = [{ id: "1", type: "text", label: "", required: false }];
         }
       }
       
@@ -362,7 +367,8 @@ const CreateForm = () => {
             ...field,
             checkboxOptions: Array.isArray(field.checkboxOptions) 
               ? field.checkboxOptions 
-              : [{ id: "1", label: "Opção 1" }]
+              : [{ id: "1", label: "Opção 1" }],
+            required: field.required || false
           };
         }
         return field;

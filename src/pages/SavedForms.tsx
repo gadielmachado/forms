@@ -298,6 +298,20 @@ export default function SavedForms() {
     
     console.log("Abrindo formulário com URL:", finalUrl);
     
+    // Copiar link para a área de transferência
+    navigator.clipboard.writeText(finalUrl)
+      .then(() => {
+        // Notificar o usuário
+        toast({
+          title: "Link copiado!",
+          description: "O link do formulário foi copiado para a área de transferência.",
+          variant: "default",
+        });
+      })
+      .catch(err => {
+        console.error("Erro ao copiar link:", err);
+      });
+    
     try {
       // Verificar se estamos em dispositivo móvel
       const isMobile = isMobileDevice();
@@ -606,345 +620,6 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
 
     return content;
   };
-  
-  // Função para baixar o documento como PDF diretamente
-  const handleDownloadDocument = async (format: 'pdf' | 'docx' = 'pdf') => {
-    try {
-      toast({
-        title: `Gerando ${format.toUpperCase()}`,
-        description: "Aguarde enquanto preparamos seu documento...",
-      });
-      
-      const element = editorRef.current;
-      if (!element) {
-        throw new Error("Conteúdo do editor não encontrado");
-      }
-
-      if (format === 'pdf') {
-        // Abordagem completamente nova - dividir o conteúdo em múltiplas páginas antes da renderização
-        // Isso evita problemas de recorte e paginação
-
-        // Cria um container temporário para o conteúdo completo
-        const tempContainer = document.createElement('div');
-        tempContainer.innerHTML = element.innerHTML;
-        tempContainer.style.width = '595px'; // A4 width em 72dpi
-        tempContainer.style.padding = '40px';
-        tempContainer.style.boxSizing = 'border-box';
-        tempContainer.style.position = 'absolute';
-        tempContainer.style.left = '-9999px';
-        tempContainer.style.top = '-9999px';
-        tempContainer.style.backgroundColor = '#ffffff';
-        tempContainer.style.fontFamily = 'Arial, sans-serif';
-        document.body.appendChild(tempContainer);
-
-        // Calcular a altura total do conteúdo
-        console.log("DEBUG: Altura do conteúdo:", tempContainer.offsetHeight);
-        
-        // Definir a altura útil da página (A4) em pixels (subtraindo margens)
-        const pageHeight = 800; // ~A4 height usável em pixels após margens
-        
-        // Calcular quantas páginas são necessárias
-        const totalPages = Math.ceil(tempContainer.offsetHeight / pageHeight);
-        console.log("DEBUG: Total de páginas calculado:", totalPages);
-        
-        // Criar PDF com dimensões A4
-        const pdf = new jsPDF({
-          unit: 'mm',
-          format: 'a4',
-          orientation: 'portrait'
-        });
-        
-        // Armazenar a altura total do conteúdo original
-        const contentTotalHeight = tempContainer.offsetHeight;
-        
-        // Remover o container temporário inicial
-        document.body.removeChild(tempContainer);
-        
-        // Vamos criar uma página de cada vez
-        for (let i = 0; i < totalPages; i++) {
-          console.log(`DEBUG: Processando página ${i+1} de ${totalPages}`);
-          
-          // Se não for a primeira página, adicione uma nova página
-          if (i > 0) {
-            pdf.addPage();
-          }
-          
-          // Criar um novo container para esta página específica
-          const pageContainer = document.createElement('div');
-          pageContainer.style.width = '595px'; // A4 width in pixels
-          pageContainer.style.height = `${pageHeight}px`; // Altura fixa para uma página
-          pageContainer.style.padding = '40px';
-          pageContainer.style.boxSizing = 'border-box';
-          pageContainer.style.position = 'absolute';
-          pageContainer.style.left = '-9999px';
-          pageContainer.style.top = '-9999px';
-          pageContainer.style.backgroundColor = '#ffffff';
-          pageContainer.style.fontFamily = 'Arial, sans-serif';
-          pageContainer.style.overflow = 'hidden';
-          
-          // Adicionar cabeçalho na primeira página apenas
-          if (i === 0) {
-            const header = document.createElement('div');
-            header.style.marginBottom = '20px';
-            header.style.borderBottom = '2px solid #4361ee';
-            header.style.paddingBottom = '10px';
-            
-            const title = document.createElement('h1');
-            title.textContent = documentTitle;
-            title.style.margin = '0';
-            title.style.textAlign = 'center';
-            title.style.color = '#4361ee';
-            title.style.fontSize = '22px';
-            
-            header.appendChild(title);
-            pageContainer.appendChild(header);
-          }
-          
-          // Clone o conteúdo original
-          const contentClone = element.cloneNode(true) as HTMLElement;
-          
-          // Configurar o clone para mostrar apenas a parte relevante para esta página
-          contentClone.style.marginTop = `-${i * pageHeight}px`; 
-          contentClone.style.width = '100%';
-          
-          pageContainer.appendChild(contentClone);
-          document.body.appendChild(pageContainer);
-          
-          // Capturar apenas a parte visível desta página
-          console.log(`DEBUG: Dimensões do container da página ${i+1}:`, 
-                      pageContainer.offsetWidth, pageContainer.offsetHeight);
-          
-          const canvas = await html2canvas(pageContainer, {
-            scale: 1.5, // Maior resolução
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            logging: true, // Ativar logs
-            height: pageHeight,
-            windowWidth: 595
-          });
-          
-          // Remover o container após captura
-          document.body.removeChild(pageContainer);
-          
-          // Converter o canvas para imagem e adicionar ao PDF
-          const imgData = canvas.toDataURL('image/jpeg', 1.0);
-          const pdfWidth = pdf.internal.pageSize.getWidth();
-          const pdfHeight = pdf.internal.pageSize.getHeight();
-          
-          // Calcular proporção para manter o aspecto
-          const imgWidth = canvas.width;
-          const imgHeight = canvas.height;
-          const ratio = imgWidth / pdfWidth;
-          const imgHeightMM = imgHeight / ratio;
-          
-          console.log(`DEBUG: Dimensões da imagem página ${i+1}:`, imgWidth, imgHeight);
-          console.log(`DEBUG: Dimensões no PDF página ${i+1}:`, pdfWidth, imgHeightMM);
-          
-          // Adicionar a imagem ao PDF sem recortes
-          pdf.addImage(
-            imgData, 
-            'JPEG', 
-            0, // x no PDF
-            0, // y no PDF
-            pdfWidth, // largura no PDF
-            imgHeightMM > pdfHeight ? pdfHeight : imgHeightMM // altura ajustada
-          );
-          
-          // Adicionar rodapé
-          pdf.setFontSize(8);
-          pdf.setTextColor(100, 100, 100);
-          pdf.text(
-            `Página ${i+1} de ${totalPages}`,
-            pdfWidth / 2,
-            pdfHeight - 10,
-            { align: 'center' }
-          );
-        }
-        
-        // Salvar o PDF
-        const fileName = `${documentTitle.replace(/\s+/g, '-').toLowerCase()}.pdf`;
-        pdf.save(fileName);
-        
-        toast({
-          title: "PDF gerado com sucesso",
-          description: `O documento "${documentTitle}" foi baixado com ${totalPages} páginas.`,
-        });
-      } else if (format === 'docx') {
-        // Exportar para DOCX
-        const fileName = `${documentTitle.replace(/\s+/g, '-').toLowerCase()}.docx`;
-        
-        // Obter o conteúdo HTML do editor
-        const htmlContent = element.innerHTML;
-        
-        // Abordagem melhorada para gerar DOCX com melhor formatação
-        // usando o arquivo de modelo como base
-        
-        try {
-          // 1. Criar um documento baseado no modelo
-          const modeloUrl = '/images/documento.docx';
-          
-          // 2. Formatar o conteúdo HTML para ser inserido no documento Word
-          // Limpeza e formatação básica do HTML
-          let cleanHtml = htmlContent
-            .replace(/<\/?div[^>]*>/g, '') // Remove tags div
-            .replace(/<br\s*\/?>/gi, '<p></p>') // Substitui <br> por parágrafos vazios
-            .replace(/<p>\s*<\/p>/gi, '<p>&nbsp;</p>'); // Garante que parágrafos vazios tenham espaço
-          
-          // 3. Criar o HTML completo com estilos melhorados
-          const preHtml = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${documentTitle}</title>
-  <style>
-    @page { 
-      size: A4; 
-      margin: 2.54cm;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      font-size: 12pt;
-      line-height: 1.5;
-      color: #333333;
-    }
-    h1 {
-      font-size: 18pt;
-      color: #4361ee;
-      margin-bottom: 16pt;
-      font-weight: normal;
-    }
-    h2 {
-      font-size: 14pt;
-      color: #3a0ca3;
-      margin-top: 22pt;
-      margin-bottom: 12pt;
-      border-bottom: 1pt solid #e2e8f0;
-      padding-bottom: 6pt;
-      font-weight: normal;
-    }
-    h3 {
-      font-size: 12pt;
-      color: #4895ef;
-      margin-top: 16pt;
-      margin-bottom: 8pt;
-      font-weight: normal;
-    }
-    p {
-      margin-bottom: 10pt;
-      text-align: justify;
-    }
-    ul, ol {
-      margin-bottom: 12pt;
-      margin-left: 14pt;
-    }
-    li {
-      margin-bottom: 6pt;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16pt 0;
-    }
-    th {
-      background-color: #f8f9fa;
-      color: #4361ee;
-      text-align: left;
-      padding: 8pt;
-      border: 1pt solid #e2e8f0;
-    }
-    td {
-      padding: 8pt;
-      border: 1pt solid #e2e8f0;
-    }
-    strong {
-      color: #3a0ca3;
-    }
-  </style>
-</head>
-<body>`;
-          const postHtml = "</body></html>";
-          
-          // 4. Montar o HTML final
-          const formattedHtml = preHtml + cleanHtml + postHtml;
-          
-          // 5. Adicionar metadados específicos para o Word para melhor compatibilidade
-          const finalHtml = formattedHtml
-            .replace('<html>', '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:v="urn:schemas-microsoft-com:vml" xmlns="http://www.w3.org/TR/REC-html40">')
-            .replace('<head>', `<head>
-              <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-              <meta name="ProgId" content="Word.Document">
-              <meta name="Generator" content="Microsoft Word 15">
-              <meta name="Originator" content="Microsoft Word 15">
-              <!--[if gte mso 9]>
-              <xml>
-                <w:WordDocument>
-                  <w:View>Print</w:View>
-                  <w:Zoom>90</w:Zoom>
-                  <w:DoNotOptimizeForBrowser/>
-                </w:WordDocument>
-              </xml>
-              <![endif]-->
-              <style>
-                /* Estilos específicos para o Word */
-                @page WordSection1 {
-                  size: 21.0cm 29.7cm;
-                  margin: 2.54cm 2.54cm 2.54cm 2.54cm;
-                  mso-header-margin: 1.5cm;
-                  mso-footer-margin: 1.5cm;
-                  mso-paper-source: 0;
-                }
-                div.WordSection1 {
-                  page: WordSection1;
-                }
-                p.MsoNormal {
-                  margin: 0cm;
-                  font-size: 12.0pt;
-                  font-family: "Arial", sans-serif;
-                  mso-fareast-language: PT-BR;
-                }
-                li.MsoNormal {
-                  margin: 0cm;
-                  font-size: 12.0pt;
-                  font-family: "Arial", sans-serif;
-                  mso-fareast-language: PT-BR;
-                }
-              </style>`);
-          
-          // 6. Criar Blob e fazer download
-          const blob = new Blob([finalHtml], { 
-            type: 'application/vnd.ms-word;charset=utf-8' 
-          });
-          
-          // Criar um link para download
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = fileName;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          toast({
-            title: "DOCX gerado com sucesso",
-            description: `O documento "${documentTitle}" foi baixado em formato Word.`,
-          });
-        } catch (error) {
-          console.error("Erro ao gerar DOCX a partir do modelo:", error);
-          toast({
-            title: "Erro ao gerar DOCX",
-            description: `Não foi possível usar o modelo. Erro: ${error instanceof Error ? error.message : 'Desconhecido'}`,
-            variant: "destructive",
-          });
-        }
-      }
-    } catch (error) {
-      console.error("ERRO na geração do documento:", error);
-      toast({
-        title: `Erro ao gerar ${format.toUpperCase()}`,
-        description: `Erro: ${error instanceof Error ? error.message : 'Falha desconhecida'}`,
-        variant: "destructive",
-      });
-    }
-  };
 
   // Helpers para a interface de busca
   const getSearchTitle = () => {
@@ -1223,7 +898,7 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
       const tempElement = document.createElement('div');
       tempElement.innerHTML = documentContent;
       const currentText = tempElement.textContent || tempElement.innerText || "";
-      
+
       // Define o prompt com base no tipo de documento
       let prompt = "";
       
@@ -1689,25 +1364,25 @@ ${generatedContent}`;
               <span className="text-white font-medium">{documentTitle}</span>
             </div>
             <div className="flex gap-2">
-              {/* Novo botão Gerar com IA */}
-              <Button 
-                onClick={handleGenerateWithAI}
-                variant="outline" 
-                size="sm"
-                disabled={isGeneratingContent}
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 flex items-center gap-2"
-              >
-                {isGeneratingContent ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="h-4 w-4" />
-                )}
-                {isGeneratingContent 
-                  ? "Gerando..." 
-                  : generationType === "relatorio" 
-                    ? "Gerar análise de relatório" 
+              {/* Botão Gerar com IA */}
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={handleGenerateWithAI}
+                  variant="outline" 
+                  size="sm"
+                  disabled={isGeneratingContent}
+                  className="bg-white/10 border-white/20 text-white hover:bg-white/20 flex items-center gap-2"
+                >
+                  {isGeneratingContent ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-4 w-4" />
+                  )}
+                  {isGeneratingContent 
+                    ? "Gerando..." 
                     : "Gerar proposta com IA"}
-              </Button>
+                </Button>
+              </div>
               
               {/* Menu de download com opções PDF e DOCX */}
               <DropdownMenu>

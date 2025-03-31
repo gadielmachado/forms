@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { GripVertical, Copy, Trash2, Type, Phone, Calendar, Link as LinkIcon, Plus, Pencil, CheckSquare, MoreVertical, ArrowRight, Clock } from "lucide-react";
+import { GripVertical, Copy, Trash2, Type, Phone, Calendar, Link as LinkIcon, Plus, Pencil, CheckSquare, MoreVertical, ArrowRight, Clock, AlertCircle } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,6 +33,7 @@ interface FormFieldProps {
   type: string;
   label: string;
   checkboxOptions?: CheckboxOption[];
+  required?: boolean;
   onLabelChange: (value: string) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -46,6 +48,8 @@ interface FormFieldProps {
   totalSteps?: number;
   // Propriedade para informar o step atual
   currentStep?: number;
+  // Propriedade para controlar se o campo é obrigatório
+  onRequiredChange?: (isRequired: boolean) => void;
 }
 
 const FormField = ({
@@ -53,6 +57,7 @@ const FormField = ({
   type,
   label,
   checkboxOptions = [],
+  required = false,
   onLabelChange,
   onDelete,
   onDuplicate,
@@ -63,11 +68,15 @@ const FormField = ({
   onMoveToStep,
   totalSteps = 1,
   currentStep = 1,
+  onRequiredChange,
 }: FormFieldProps) => {
   // Estado local para edição de opções quando as props não estão disponíveis
   const [localOptions, setLocalOptions] = useState<CheckboxOption[]>([
     { id: "1", label: "Opção 1", isEditing: false }
   ]);
+  
+  // Estado local para controlar se o campo é obrigatório
+  const [isRequired, setIsRequired] = useState(required);
   
   // Use as opções passadas via props ou o estado local
   const options = checkboxOptions.length > 0 ? checkboxOptions : localOptions;
@@ -138,6 +147,14 @@ const FormField = ({
     }
   };
 
+  // Função para lidar com a alteração do estado obrigatório
+  const handleRequiredChange = (checked: boolean) => {
+    setIsRequired(checked);
+    if (onRequiredChange) {
+      onRequiredChange(checked);
+    }
+  };
+
   const [timeValue, setTimeValue] = useState("12:00");
 
   const getPlaceholder = () => {
@@ -176,6 +193,27 @@ const FormField = ({
     }
   };
 
+  // Componente para o toggle de campo obrigatório
+  const RequiredFieldToggle = () => {
+    // Não mostrar para campos de tipo headline
+    if (type === "headline") return null;
+    
+    return (
+      <div className="flex items-center mt-3 px-1">
+        <div className={`flex items-center space-x-2 p-1.5 rounded-full ${isRequired ? 'bg-gray-100' : 'bg-transparent'} transition-colors`}>
+          <Switch
+            checked={isRequired}
+            onCheckedChange={handleRequiredChange}
+            className={`${isRequired ? 'bg-green-500' : 'bg-gray-200'}`}
+          />
+          <span className={`text-xs ${isRequired ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
+            {isRequired ? 'Campo obrigatório' : 'Campo opcional'}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   const renderField = () => {
     switch (type) {
       case "headline":
@@ -206,12 +244,17 @@ const FormField = ({
               <span className="text-xs font-medium text-orange-600">Checkbox</span>
             </div>
             
-            <input
-              value={label}
-              onChange={(e) => onLabelChange(e.target.value)}
-              placeholder="Digite o título do campo"
-              className="w-full bg-transparent text-lg font-medium outline-none"
-            />
+            <div className="flex items-center">
+              <input
+                value={label}
+                onChange={(e) => onLabelChange(e.target.value)}
+                placeholder="Digite o título do campo"
+                className="w-full bg-transparent text-lg font-medium outline-none"
+              />
+              {isRequired && (
+                <span className="text-red-500 font-medium text-sm ml-1">*</span>
+              )}
+            </div>
             
             {/* Lista de opções de checkbox */}
             <div className="space-y-2 bg-gray-50 p-3 rounded-lg">
@@ -286,6 +329,9 @@ const FormField = ({
               <Plus className="h-4 w-4 mr-2" />
               Adicionar opção
             </Button>
+            
+            {/* Toggle de campo obrigatório */}
+            <RequiredFieldToggle />
           </div>
         );
       case "time":
@@ -298,17 +344,25 @@ const FormField = ({
               <span className="text-xs font-medium text-amber-600">Horário</span>
             </div>
             
-            <input
-              value={label}
-              onChange={(e) => onLabelChange(e.target.value)}
-              placeholder="Digite o título do campo"
-              className="w-full bg-transparent text-lg font-medium outline-none"
-            />
+            <div className="flex items-center">
+              <input
+                value={label}
+                onChange={(e) => onLabelChange(e.target.value)}
+                placeholder="Digite o título do campo"
+                className="w-full bg-transparent text-lg font-medium outline-none"
+              />
+              {isRequired && (
+                <span className="text-red-500 font-medium text-sm ml-1">*</span>
+              )}
+            </div>
             
             {/* Componente de seleção de horário com listas roláveis */}
             <div className="pt-2">
               <TimeScrollSelector value={timeValue} onChange={setTimeValue} />
             </div>
+            
+            {/* Toggle de campo obrigatório */}
+            <RequiredFieldToggle />
           </div>
         );
       default:
@@ -333,17 +387,22 @@ const FormField = ({
               </span>
             </div>
             
-            <input
-              value={label}
-              onChange={(e) => onLabelChange(e.target.value)}
-              placeholder="Digite o título do campo"
-              className="w-full bg-transparent text-lg font-medium outline-none"
-            />
+            <div className="flex items-center">
+              <input
+                value={label}
+                onChange={(e) => onLabelChange(e.target.value)}
+                placeholder="Digite o título do campo"
+                className="w-full bg-transparent text-lg font-medium outline-none"
+              />
+              {isRequired && (
+                <span className="text-red-500 font-medium text-sm ml-1">*</span>
+              )}
+            </div>
             
             <div className="relative">
               <Input 
                 placeholder={getPlaceholder()} 
-                className="rounded-xl border-primary/30 focus-visible:ring-primary/30 pl-3 transition-all"
+                className={`rounded-xl ${isRequired ? 'border-red-300 focus-visible:ring-red-300' : 'border-primary/30 focus-visible:ring-primary/30'} pl-3 transition-all`}
               />
               <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
                 {type === "phone" && "Opcional"}
@@ -352,6 +411,9 @@ const FormField = ({
                 {type === "link" && "URL"}
               </div>
             </div>
+            
+            {/* Toggle de campo obrigatório */}
+            <RequiredFieldToggle />
           </div>
         );
     }
@@ -386,7 +448,7 @@ const FormField = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative bg-white rounded-xl shadow-sm border border-gray-100 p-6 transition-all hover:shadow-md hover:border-blue-100 ${
+      className={`group relative bg-white rounded-xl shadow-sm border ${isRequired ? 'border-red-100' : 'border-gray-100'} p-6 transition-all hover:shadow-md ${isRequired ? 'hover:border-red-200' : 'hover:border-blue-100'} ${
         isDragging ? "opacity-50 shadow-lg scale-105 border-blue-200 bg-blue-50/30" : ""
       }`}
     >
