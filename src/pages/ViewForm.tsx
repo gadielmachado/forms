@@ -168,15 +168,15 @@ const ViewForm = () => {
 
         // MODIFICAÇÃO: Não usar .single() para evitar erro de múltiplas linhas
         let { data, error } = await supabase
-          .from("forms")
-          .select("*")
+        .from("forms")
+        .select("*")
           .eq("id", id.trim()) // Garantir que o ID esteja sem espaços
           .limit(1); // Limitar a 1 resultado em vez de .single()
 
         // Verificar os resultados detalhadamente
         console.log(`[ViewForm-Debug] Resposta do Supabase: Status=${error ? 'Erro' : 'Sucesso'}, Resultados: ${data?.length || 0}`);
-        
-        if (error) {
+
+      if (error) {
           console.error("[ViewForm] Erro detalhado do Supabase:", error);
           console.error(`[ViewForm] Código de erro: ${error.code}, Mensagem: ${error.message}, Detalhes: ${error.details}`);
           throw new Error(`Erro ao carregar formulário: ${error.message}`);
@@ -203,8 +203,8 @@ const ViewForm = () => {
             console.log("[ViewForm-Debug] Formulário encontrado na segunda tentativa:", retryResult.data[0]);
             data = retryResult.data;
           } else {
-            console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
-            throw new Error(`Formulário não encontrado com ID: ${id}`);
+        console.error(`[ViewForm] Formulário não encontrado com ID: ${id}`);
+        throw new Error(`Formulário não encontrado com ID: ${id}`);
           }
         }
 
@@ -1365,7 +1365,8 @@ const ViewForm = () => {
   return (
     <div className={cn(
       "min-h-screen flex flex-col", 
-      isEmbedded ? "" : "p-2 sm:p-4 md:p-6"
+      isEmbedded ? "" : "p-2 sm:p-4 md:p-6",
+      currentTheme.mode === 'dark' ? 'bg-gray-950 text-gray-100' : 'bg-gray-50 text-gray-900'
     )}>
       {isFormLoading ? (
         <div className="flex-1 flex items-center justify-center">
@@ -1521,9 +1522,13 @@ const ViewForm = () => {
           <div className="hidden lg:block">
             <div className="sticky top-8">
               <img
-                src={form?.image_url || "/form-image.svg"}
+                src={form?.image_url 
+                  ? (form.image_url.startsWith('http') 
+                      ? form.image_url 
+                      : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
+                  : "/form-image.svg"}
                 alt="Imagem do Formulário"
-                  className={`w-full h-auto rounded-2xl object-cover shadow-lg border ${currentTheme.mode === 'dark' ? 'border-gray-800' : 'border-gray-300'}`}
+                className="w-full h-auto rounded-2xl object-cover shadow-lg"
                 onError={(e) => {
                   console.error("Erro ao carregar imagem:", e);
                   e.currentTarget.src = "/form-image.svg";
