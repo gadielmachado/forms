@@ -1,52 +1,174 @@
-import { CheckCircle, ArrowRight } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Check, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
-const SuccessMessage = () => {
+interface SuccessMessageProps {
+  onClose?: () => void;
+  userName?: string;
+  message?: string;
+}
+
+const SuccessMessage = ({
+  onClose,
+  userName = "",
+  message = "Suas respostas foram enviadas com sucesso.",
+}: SuccessMessageProps) => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+    return () => setIsVisible(false);
+  }, []);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(() => {
+      if (onClose) onClose();
+    }, 300);
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-md border-0 shadow-2xl overflow-hidden animate-in fade-in-50 zoom-in-95 duration-300">
-        {/* Barra superior decorativa com gradiente */}
-        <div className="h-2 bg-gradient-to-r from-green-400 to-emerald-600"></div>
-        
-        <CardHeader className="text-center pt-8 pb-2">
-          <div className="mx-auto mb-6 relative">
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-green-400 to-emerald-600 opacity-75 blur-sm"></div>
-            <div className="relative bg-gradient-to-r from-green-400 to-emerald-600 rounded-full p-4">
-              <CheckCircle className="w-12 h-12 text-white" strokeWidth={2.5} />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold text-gray-900">
-            Respostas Enviadas com Sucesso!
-          </CardTitle>
-        </CardHeader>
-        
-        <CardContent className="text-center px-8 pb-8">
-          <p className="mb-8 text-gray-600 text-lg">
-            Suas respostas foram registradas. Obrigado por participar!
-          </p>
-          
-          <div className="flex justify-center">
-            <Button 
-              onClick={() => window.close()}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-6 py-6 h-auto text-base font-medium shadow-lg shadow-green-500/20 transition-all duration-200 flex items-center gap-2 rounded-full"
+    <AnimatePresence>
+      {isVisible && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop com blur */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleClose}
+          />
+
+          {/* Card principal com animação */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ 
+              type: "spring", 
+              stiffness: 300, 
+              damping: 30,
+              delay: 0.1 
+            }}
+            className="relative w-full max-w-md p-6 overflow-hidden bg-white rounded-xl shadow-2xl"
+          >
+            {/* Botão de fechar */}
+            <button 
+              onClick={handleClose}
+              className="absolute p-1 text-gray-400 rounded-full top-4 right-4 hover:bg-gray-100 hover:text-gray-600 transition-colors"
             >
-              Concluir
-              <ArrowRight className="w-5 h-5 ml-1" />
-            </Button>
-          </div>
-          
-          {/* Elementos decorativos usando pseudo-elementos para não adicionar novos componentes */}
-          <div className="absolute top-6 right-6 w-16 h-16 opacity-10 bg-green-500 rounded-full blur-xl"></div>
-          <div className="absolute bottom-10 left-6 w-8 h-8 opacity-10 bg-green-500 rounded-full blur-md"></div>
-        </CardContent>
-      </Card>
-    </div>
+              <X size={20} />
+            </button>
+
+            {/* Ícone de sucesso animado */}
+            <div className="flex justify-center mb-5">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 260,
+                  damping: 20,
+                  delay: 0.3
+                }}
+                className="relative"
+              >
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="absolute -z-10">
+                  <motion.circle 
+                    cx="60" 
+                    cy="60" 
+                    r="55" 
+                    stroke="#E2E8F0" 
+                    strokeWidth="10"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 1, delay: 0.5 }}
+                  />
+                </svg>
+                
+                <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <motion.circle 
+                    cx="60" 
+                    cy="60" 
+                    r="55" 
+                    stroke="#4F46E5" 
+                    strokeWidth="10"
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 1, delay: 0.5 }}
+                  />
+                </svg>
+                
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <motion.div
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.7, duration: 0.3 }}
+                    className="bg-indigo-600 rounded-full p-5"
+                  >
+                    <Check className="w-10 h-10 text-white" strokeWidth={3} />
+                  </motion.div>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Conteúdo com animação */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="text-center"
+            >
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                {userName ? (
+                  <>
+                    Muito bem, <span className="text-indigo-600">{userName}!</span>
+                  </>
+                ) : (
+                  "Sucesso!"
+                )}
+              </h2>
+              <p className="text-gray-600 mb-6">{message}</p>
+              
+              <Button
+                onClick={handleClose}
+                className="px-6 py-2 font-medium text-white bg-indigo-600 rounded-full hover:bg-indigo-700 transition-colors"
+              >
+                Continuar
+              </Button>
+            </motion.div>
+
+            {/* Elementos decorativos */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-100 rounded-full opacity-50 blur-xl"></div>
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-indigo-100 rounded-full opacity-50 blur-xl"></div>
+            
+            {/* Elementos decorativos adicionais */}
+            <motion.div 
+              initial={{ scale: 0, rotate: -45 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 0.9, duration: 0.5 }}
+              className="absolute top-16 right-16 w-4 h-4 bg-indigo-400 rounded-full"
+            />
+            <motion.div 
+              initial={{ scale: 0, rotate: 45 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 1.1, duration: 0.5 }}
+              className="absolute bottom-16 left-16 w-3 h-3 bg-indigo-400 rounded-full"
+            />
+            <motion.div 
+              initial={{ scale: 0, rotate: 90 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ delay: 1.3, duration: 0.5 }}
+              className="absolute top-24 left-20 w-2 h-2 bg-indigo-300 rounded-sm"
+            />
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
   );
 };
 

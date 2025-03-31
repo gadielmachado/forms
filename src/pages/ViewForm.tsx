@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Loader2, Clock, Check } from "lucide-react";
 import { toast, useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
-import { SuccessCard } from "@/components/success-card";
+import FormSuccessModal from "@/components/FormSuccessModal";
 import { cn } from "@/lib/utils";
 import emailjs from '@emailjs/browser';
 import { useTenant } from "@/contexts/TenantContext";
@@ -124,7 +124,7 @@ const ViewForm = () => {
       }
       
       // Log para debug
-      if (isDebugMode) {
+    if (isDebugMode) {
         console.log("📊 Todos os parâmetros da URL:", Object.fromEntries(urlParams.entries()));
       }
     } catch (error) {
@@ -689,11 +689,11 @@ const ViewForm = () => {
           // Buscar diretamente da tabela settings usando o tenant_id efetivo
           if (effectiveTenantId) {
             const { data, error } = await supabase
-              .from('settings')
-              .select('admin_email')
+        .from('settings')
+        .select('admin_email')
               .eq('tenant_id', effectiveTenantId)
-              .single();
-              
+        .single();
+
             if (!error && data?.admin_email) {
               console.log('Email recuperado com sucesso:', data.admin_email);
               return data.admin_email;
@@ -1466,7 +1466,7 @@ const ViewForm = () => {
           </div>
 
             {/* Coluna da Imagem - no desktop aparece ao lado, no mobile embaixo */}
-            {!isEmbedded && (
+          {!isEmbedded && (
               <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
                 <div className={isMobileDevice ? "" : "sticky top-8"}>
                   <img
@@ -1475,41 +1475,40 @@ const ViewForm = () => {
                           ? form.image_url 
                           : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
                       : "/form-image.svg"}
-                    alt="Imagem do Formulário"
+                alt="Imagem do Formulário"
                     className="w-full h-auto rounded-2xl object-cover shadow-lg"
-                    onError={(e) => {
-                      console.error("Erro ao carregar imagem:", e);
-                      e.currentTarget.src = "/form-image.svg";
-                    }}
-                  />
-                  <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                    <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                      Sobre este formulário
-                    </h3>
-                    <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                      Complete todos os campos necessários. Suas respostas são importantes
-                      para nós.
-                    </p>
-                  </div>
-                </div>
+                onError={(e) => {
+                  console.error("Erro ao carregar imagem:", e);
+                  e.currentTarget.src = "/form-image.svg";
+                }}
+              />
+                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                  Sobre este formulário
+                </h3>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                  Complete todos os campos necessários. Suas respostas são importantes
+                  para nós.
+                </p>
               </div>
-            )}
+            </div>
+          </div>
+          )}
         </div>
       </div>
       )}
 
-      {/* Card de Sucesso */}
-      <Dialog open={showSuccess} onOpenChange={setShowSuccess}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Sucesso</DialogTitle>
-            <DialogDescription>
-              Suas respostas foram enviadas com sucesso.
-            </DialogDescription>
-          </DialogHeader>
-          {/* ... resto do conteúdo ... */}
-        </DialogContent>
-      </Dialog>
+      {/* Substituir o Dialog de sucesso pelo novo FormSuccessModal */}
+      <FormSuccessModal 
+        isOpen={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        onRestart={() => {
+          setShowSuccess(false);
+          setFormResponses({});
+          setCurrentStep(1);
+        }}
+        formName={form?.name}
+      />
     </div>
   );
 };
