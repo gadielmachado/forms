@@ -9,6 +9,12 @@
 .env.*
 !.env.example
 
+# Arquivos de ambiente locais
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
 # Arquivos de build
 /dist
 /build
