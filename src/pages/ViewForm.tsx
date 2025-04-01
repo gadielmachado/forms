@@ -597,7 +597,8 @@ const ViewForm = () => {
 
       // Validar campos obrigatórios
       const emptyFields = form?.fields
-        .filter(field => field.type !== "headline")
+        .filter(field => field.type !== "headline" && field.type !== "description") // Excluir headline e description
+        .filter(field => field.required) // Verificar apenas campos marcados como obrigatórios
         .filter(field => {
           if (field.type === "checkbox") {
             // Para checkbox, verifica se tem pelo menos uma opção selecionada
@@ -609,10 +610,10 @@ const ViewForm = () => {
         });
 
       if (emptyFields && emptyFields.length > 0) {
-        console.log('Campos vazios:', emptyFields);
+        console.log('Campos obrigatórios não preenchidos:', emptyFields);
         toast({
           title: "Campos obrigatórios",
-          description: "Por favor, preencha todos os campos antes de enviar.",
+          description: "Por favor, preencha todos os campos obrigatórios antes de enviar.",
           variant: "destructive",
         });
         return;
