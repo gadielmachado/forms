@@ -13,13 +13,28 @@ export default function SuccessPage() {
   useEffect(() => {
     // Verifica se tem sessionId na URL
     if (!sessionId) {
+      console.error('Session ID não encontrado na URL');
       setIsLoading(false);
       return;
     }
 
+    // Log para facilitar debugging
+    console.log(`Página de sucesso acessada com session_id: ${sessionId}`);
+
     const verifySession = async () => {
       try {
         // Opcionalmente, você pode verificar a sessão no backend
+        // Registrar a sessão para o Zapier via webhook ou outro meio
+        try {
+          // Chamar nosso endpoint para o Zapier processar a sessão
+          const response = await fetch(`/api/zapier/stripe-webhook?session_id=${sessionId}`);
+          const data = await response.json();
+          console.log('Verificação de sessão para Zapier:', data);
+        } catch (webhookError) {
+          console.error('Erro ao notificar sobre a sessão:', webhookError);
+          // Não falhar o fluxo principal se o webhook falhar
+        }
+
         setIsLoading(false);
       } catch (error) {
         console.error('Erro ao verificar sessão:', error);
@@ -55,6 +70,13 @@ export default function SuccessPage() {
               Não conseguimos confirmar seu pagamento. Por favor, entre em contato com o suporte.
             </CardDescription>
           </CardHeader>
+          <CardContent>
+            {sessionId && (
+              <div className="text-sm text-gray-500 mt-2">
+                ID da sessão: {sessionId}
+              </div>
+            )}
+          </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
               <Link to="/">Voltar ao início</Link>
@@ -84,6 +106,10 @@ export default function SuccessPage() {
               Você já tem acesso completo à plataforma e pode começar a usar todos os recursos
               imediatamente.
             </p>
+          </div>
+          {/* ID da sessão visível para debugging */}
+          <div className="text-xs text-gray-400 mt-2">
+            Referência: {sessionId}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-2">
