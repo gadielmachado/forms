@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
-  Calendar, Clock, Download, Filter, Search, SortAsc, ArrowLeft 
+  Calendar, Clock, Download, Filter, Search, SortAsc, ArrowLeft, Copy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,89 @@ const FormResponses = () => {
     }
   };
 
+  // Função para copiar todas as respostas em formato de texto
+  const handleCopyResponses = () => {
+    try {
+      if (!form || !filteredResponses.length) {
+        toast({
+          title: "Não há respostas para copiar",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Formatação do texto das respostas
+      let textContent = `${form.name}\n`;
+      textContent += `${filteredResponses.length} ${filteredResponses.length === 1 ? 'resposta' : 'respostas'}\n`;
+      textContent += `Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}\n\n`;
+
+      // Para cada resposta, formatar as perguntas e respostas
+      filteredResponses.forEach((response, responseIndex) => {
+        // Adicionar cabeçalho da resposta com data e hora
+        textContent += `------------------------------------------\n`;
+        textContent += `RESPOSTA ${responseIndex + 1} - ${format(new Date(response.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}\n`;
+        textContent += `------------------------------------------\n\n`;
+        
+        // Adicionar cada pergunta e resposta
+        form.fields.forEach((field) => {
+          if (field.type !== "headline") {
+            const resposta = response.response_data[field.label] || 'Sem resposta';
+            textContent += `> ${field.label}:\n${resposta}\n\n`;
+          }
+        });
+      });
+
+      // Copiar para a área de transferência
+      navigator.clipboard.writeText(textContent);
+      
+      toast({
+        title: "Respostas copiadas!",
+        description: `${filteredResponses.length} ${filteredResponses.length === 1 ? 'resposta copiada' : 'respostas copiadas'} para a área de transferência`
+      });
+    } catch (error) {
+      console.error("Erro ao copiar respostas:", error);
+      toast({
+        title: "Erro ao copiar respostas",
+        description: "Não foi possível copiar as respostas",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Função para formatar e copiar uma única resposta
+  const formatAndCopyResponse = (response: FormResponse) => {
+    if (!form) return;
+    
+    try {
+      // Formatação do texto da resposta individual
+      let textContent = `${form.name}\n`;
+      textContent += `Resposta de ${format(new Date(response.created_at), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}\n\n`;
+      
+      // Adicionar cada pergunta e resposta
+      form.fields.forEach((field) => {
+        if (field.type !== "headline") {
+          const resposta = response.response_data[field.label] || 'Sem resposta';
+          textContent += `> ${field.label}:\n${resposta}\n\n`;
+        }
+      });
+      
+      // Copiar para a área de transferência
+      navigator.clipboard.writeText(textContent);
+      
+      toast({
+        title: "Resposta copiada!",
+        description: "A resposta foi copiada para a área de transferência"
+      });
+    } catch (error) {
+      console.error("Erro ao copiar resposta:", error);
+      toast({
+        title: "Erro ao copiar resposta",
+        description: "Não foi possível copiar a resposta",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Adicione esta função para truncar texto longo
   const TruncatedText = ({ text, maxLength = 100 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -294,6 +377,15 @@ const FormResponses = () => {
               variant="outline" 
               size="sm" 
               className="flex items-center gap-1"
+              onClick={handleCopyResponses}
+            >
+              <Copy className="h-4 w-4" />
+              <span>Copiar respostas</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="flex items-center gap-1"
               onClick={handleExportPDF}
             >
               <Download className="h-4 w-4" />
@@ -332,14 +424,25 @@ const FormResponses = () => {
                       })}
                     </div>
                   </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-xs"
-                    onClick={() => handleViewDetails(response)}
-                  >
-                    Visualizar detalhes
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs flex items-center gap-1"
+                      onClick={() => formatAndCopyResponse(response)}
+                    >
+                      <Copy className="h-3 w-3" />
+                      <span>Copiar</span>
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => handleViewDetails(response)}
+                    >
+                      Visualizar detalhes
+                    </Button>
+                  </div>
                 </div>
                 
                 {/* Respostas em formato vertical */}
@@ -408,12 +511,25 @@ const FormResponses = () => {
           )}
           
           <DialogFooter>
-            <Button 
-              onClick={() => setIsDetailsOpen(false)}
-              className="w-full sm:w-auto"
-            >
-              Fechar
-            </Button>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (selectedResponse) {
+                    formatAndCopyResponse(selectedResponse);
+                  }
+                }}
+                className="flex items-center gap-1"
+              >
+                <Copy className="h-4 w-4" />
+                <span>Copiar resposta</span>
+              </Button>
+              <Button 
+                onClick={() => setIsDetailsOpen(false)}
+              >
+                Fechar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
