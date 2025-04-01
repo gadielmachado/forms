@@ -1366,22 +1366,22 @@ ${generatedContent}`;
             <div className="flex gap-2">
               {/* Botão Gerar com IA */}
               <div className="flex items-center gap-2">
-                <Button 
-                  onClick={handleGenerateWithAI}
-                  variant="outline" 
-                  size="sm"
-                  disabled={isGeneratingContent}
-                  className="bg-white/10 border-white/20 text-white hover:bg-white/20 flex items-center gap-2"
-                >
-                  {isGeneratingContent ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-4 w-4" />
-                  )}
-                  {isGeneratingContent 
-                    ? "Gerando..." 
+              <Button 
+                onClick={handleGenerateWithAI}
+                variant="outline" 
+                size="sm"
+                disabled={isGeneratingContent}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 flex items-center gap-2"
+              >
+                {isGeneratingContent ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {isGeneratingContent 
+                  ? "Gerando..." 
                     : "Gerar proposta com IA"}
-                </Button>
+              </Button>
               </div>
               
               {/* Menu de download com opções PDF e DOCX */}

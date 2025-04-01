@@ -139,7 +139,7 @@ const SuccessMessage = ({
                 className="px-6 py-2 font-medium text-white bg-indigo-600 rounded-full hover:bg-indigo-700 transition-colors"
               >
                 Continuar
-              </Button>
+            </Button>
             </motion.div>
 
             {/* Elementos decorativos */}
@@ -166,7 +166,7 @@ const SuccessMessage = ({
               className="absolute top-24 left-20 w-2 h-2 bg-indigo-300 rounded-sm"
             />
           </motion.div>
-        </div>
+    </div>
       )}
     </AnimatePresence>
   );
