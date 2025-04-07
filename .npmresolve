@@ -1,0 +1,6 @@
+--install-strategy=shallow
+--no-optional
+--no-fund
+--no-audit
+--no-package-lock
+--force 
