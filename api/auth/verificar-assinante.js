@@ -33,6 +33,13 @@ try {
   console.error('Erro ao inicializar Supabase:', error);
 }
 
+console.log('API Verificar Assinante - Iniciada');
+console.log('Variáveis de ambiente:', {
+  stripeKeySet: !!process.env.STRIPE_SECRET_KEY,
+  supabaseUrlSet: !!process.env.SUPABASE_URL,
+  supabaseKeySet: !!process.env.SUPABASE_KEY,
+});
+
 export default async function handler(req, res) {
   // Se o Stripe não estiver configurado, retornar mensagem amigável
   if (!stripe) {
@@ -122,6 +129,14 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Erro ao verificar assinante:', error);
+    console.error('Stack trace:', error.stack);
+    console.error('Detalhes do erro:', {
+      message: error.message,
+      code: error.code,
+      type: error.type,
+      statusCode: error.statusCode
+    });
+    
     return res.status(500).json({
       success: false,
       message: "Não foi possível verificar sua assinatura. Para criar uma conta no Soren Forms, você precisa ser um assinante ativo. Adquira sua assinatura agora."

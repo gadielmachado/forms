@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Mail, Lock, LogIn, UserPlus } from "lucide-react";
 import axios from "axios";
+import { verifySubscription, STRIPE_CHECKOUT_URL, SUBSCRIPTION_MESSAGES } from "@/lib/stripeVerification";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -15,24 +16,40 @@ const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState("");
+  const [verificationDone, setVerificationDone] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Função para verificar se o email já está registrado
-  const checkEmailExists = async (email: string) => {
+  // Reset verification state when signup mode changes
+  useEffect(() => {
+    setVerificationDone(false);
+    setHasSubscription(false);
+    setSubscriptionError("");
+  }, [isSignUp]);
+
+  // Função para verificar assinatura com tratamento de erros
+  const checkSubscription = async (email) => {
+    setSubscriptionError(SUBSCRIPTION_MESSAGES.CHECKING);
+    
     try {
-      const { data, error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          shouldCreateUser: false
-        }
-      });
+      // Verificar assinatura usando o utilitário
+      const hasActiveSubscription = await verifySubscription(email);
       
-      // Se não houver erro e o método não retornar nada, significa que o email existe
-      // Supabase não tem um endpoint direto para verificar se o email existe
-      return !error;
+      setVerificationDone(true);
+      setHasSubscription(hasActiveSubscription);
+      
+      if (!hasActiveSubscription) {
+        setSubscriptionError(SUBSCRIPTION_MESSAGES.REQUIRED);
+        return false;
+      }
+      
+      return true;
     } catch (error) {
-      console.error('Erro ao verificar email:', error);
+      console.error("Erro ao verificar assinatura:", error);
+      setVerificationDone(true);
+      setHasSubscription(false);
+      setSubscriptionError(SUBSCRIPTION_MESSAGES.NETWORK_ERROR);
       return false;
     }
   };
@@ -40,56 +57,44 @@ const Auth = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setSubscriptionError("");
 
     try {
       if (isSignUp) {
-        // Verificar primeiro se o email já existe
-        setIsLoading(true);
-        setSubscriptionError("Verificando email...");
-        
-        const emailExists = await checkEmailExists(email);
-        
-        if (emailExists) {
-          setSubscriptionError("Este email já está registrado. Por favor, faça login com sua conta existente.");
+        // Se já verificamos e não tem assinatura, mostra o erro e não prossegue
+        if (verificationDone && !hasSubscription) {
           setIsLoading(false);
           return;
         }
         
-        // Email não existe, verificar assinatura no Stripe
-        setSubscriptionError("Verificando sua assinatura...");
-        
-        // Adicionar timeout para a requisição
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
-        
-        const response = await axios.post('/api/auth/verificar-assinante', 
-          { email },
-          { signal: controller.signal }
-        ).catch(error => {
-          // Se for erro de timeout ou rede, assumir que usuário não é assinante
-          if (error.name === 'AbortError' || error.code === 'ECONNABORTED' || !error.response) {
-            return { 
-              data: { 
-                success: false, 
-                message: "Para criar sua conta no Soren Forms, você precisa ser um assinante. Por favor, adquira uma assinatura para continuar."
-              }
-            };
+        // Se ainda não verificamos, verifica a assinatura
+        if (!verificationDone) {
+          const hasValidSubscription = await checkSubscription(email);
+          setIsLoading(false);
+          
+          // Se não tiver assinatura, mostra mensagem e não continua
+          if (!hasValidSubscription) {
+            return;
           }
-          throw error;
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.data.success) {
-          setSubscriptionError(response.data.message || "Você não é um assinante. Por favor, adquira uma assinatura para criar uma conta.");
-          setIsLoading(false);
-          return;
         }
         
-        // Se for assinante, continuar com o registro
-        const customerId = response.data.customer.id;
-        const subscriptionId = response.data.customer.subscription_id;
+        // Se tiver assinatura, continua com o registro
+        setIsLoading(true);
+        
+        // Verificar se o email já existe
+        try {
+          const { data, error } = await supabase.auth.signInWithOtp({
+            email: email,
+            options: { shouldCreateUser: false }
+          });
+          
+          if (!error) {
+            setIsLoading(false);
+            setSubscriptionError("Este email já está registrado. Por favor, faça login com sua conta existente.");
+            return;
+          }
+        } catch (e) {
+          // Ignora erro e continua
+        }
         
         // Registrar o usuário
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -100,15 +105,41 @@ const Auth = () => {
         if (signUpError) throw signUpError;
         
         if (authData.user) {
-          // Ignoramos completamente a tabela 'usuarios' enquanto o Supabase resolve o problema
-          // A verificação de assinatura já foi feita anteriormente através da API do Stripe
-          console.log('Dados do Stripe:', {
-            userId: authData.user.id,
-            email: email,
-            customerId: customerId,
-            subscriptionId: subscriptionId
-          });
-          // Nota: Quando o problema do Supabase for resolvido, podemos restaurar a inserção na tabela 'usuarios'
+          console.log('Usuário criado com sucesso:', authData.user.id);
+          
+          try {
+            // Criar uma organização padrão para o novo usuário
+            const { data: tenantData, error: tenantError } = await supabase
+              .from('tenants')
+              .insert({
+                name: 'Minha Organização',
+                created_by: authData.user.id
+              })
+              .select()
+              .single();
+              
+            if (tenantError) {
+              console.error('Erro ao criar tenant:', tenantError);
+            } else {
+              console.log('Tenant criado com sucesso:', tenantData.id);
+              
+              // Associar o usuário à organização como admin
+              const { error: userTenantError } = await supabase
+                .from('user_tenants')
+                .insert({
+                  user_id: authData.user.id,
+                  tenant_id: tenantData.id,
+                  role: 'admin'
+                });
+                
+              if (userTenantError) {
+                console.error('Erro ao associar usuário ao tenant:', userTenantError);
+              }
+            }
+          } catch (tenantError) {
+            console.error('Exceção ao criar tenant:', tenantError);
+            // Continua mesmo se falhar criação do tenant
+          }
         }
 
         toast({
@@ -134,6 +165,10 @@ const Auth = () => {
         errorMessage = "Houve um problema ao salvar seus dados. Tente novamente ou entre em contato com o suporte.";
       } else if (error.message.includes('network') || error.message.includes('timeout')) {
         errorMessage = "Problema de conexão. Verifique sua internet e tente novamente.";
+      } else if (error.message.includes('Invalid login credentials')) {
+        errorMessage = "Email ou senha incorretos. Verifique suas credenciais e tente novamente.";
+      } else if (error.message.includes('User already registered')) {
+        errorMessage = "Este email já está registrado. Por favor, faça login ou recupere sua senha.";
       }
       
       toast({
@@ -218,7 +253,7 @@ const Auth = () => {
               {isSignUp ? "Criar Conta" : "Login"}
             </h2>
             <p className="text-sm text-gray-600 mt-2">
-              {isSignUp 
+              {isSignUp
                 ? "Preencha os dados abaixo para criar sua conta"
                 : "Bem-vindo de volta! Por favor, faça login em sua conta."}
             </p>
@@ -279,11 +314,11 @@ const Auth = () => {
               </div>
             </div>
 
-            {subscriptionError && (
+            {isSignUp && subscriptionError && (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4 shadow-sm">
                 <div className="flex items-center mb-3">
                   <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
-                    {subscriptionError === "Verificando sua assinatura..." ? (
+                    {subscriptionError === SUBSCRIPTION_MESSAGES.CHECKING ? (
                       <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -296,16 +331,16 @@ const Auth = () => {
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-blue-800">
-                      {subscriptionError === "Verificando sua assinatura..." ? "Verificando assinatura" : "Assinatura necessária"}
+                      {subscriptionError === SUBSCRIPTION_MESSAGES.CHECKING ? "Verificando assinatura" : "Assinatura necessária"}
                     </h3>
                   </div>
                 </div>
                 <div className="text-sm text-blue-700 mb-3">
                   {subscriptionError}
                 </div>
-                {subscriptionError !== "Verificando sua assinatura..." && (
+                {subscriptionError !== SUBSCRIPTION_MESSAGES.CHECKING && verificationDone && !hasSubscription && (
                   <a 
-                    href="https://buy.stripe.com/6oEg225u68Ivf2obIJ" 
+                    href={STRIPE_CHECKOUT_URL} 
                     className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-md transition-colors duration-200 font-medium"
                     target="_blank" 
                     rel="noopener noreferrer"
@@ -335,10 +370,10 @@ const Auth = () => {
               </div>
             )}
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-11 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 flex items-center justify-center gap-2"
-              disabled={isLoading}
+              disabled={isLoading || (isSignUp && verificationDone && !hasSubscription)}
             >
               {isLoading ? (
                 <>
@@ -350,8 +385,8 @@ const Auth = () => {
                 </>
               ) : (
                 <>
-                  {isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-                  {isSignUp ? "Criar conta" : "Entrar"}
+                {isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+                {isSignUp ? "Criar conta" : "Entrar"}
                 </>
               )}
             </Button>
