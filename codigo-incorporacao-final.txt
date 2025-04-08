@@ -1,0 +1,39 @@
+<!-- CÓDIGO DE INCORPORAÇÃO SOREN FORMS - VERSÃO SIMPLIFICADA -->
+<!-- Substitua FORM_ID e TENANT_ID pelos valores corretos -->
+
+<div style="width: 100%; max-width: 800px; margin: 0 auto; font-family: system-ui, sans-serif;">
+  <!-- Container do iframe -->
+  <iframe 
+    src="http://localhost:3002/form/abbc1d16-9672-4681-a476-8971b640246d?embed=true&tenant_id=28bdc7a7-a678-44e3-a8a9-5b4dfbb2cc74" 
+    style="width: 100%; height: 650px; border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"
+    title="Formulário Soren"
+    scrolling="no"
+    allow="camera; microphone; fullscreen">
+  </iframe>
+</div>
+
+<!-- Para produção, substitua o localhost pela URL correta -->
+<!-- Por exemplo: src="https://seu-site.com/form/FORM_ID?embed=true&tenant_id=TENANT_ID" -->
+
+<!-- FIM DO CÓDIGO -->
+
+
+INSTRUÇÕES IMPORTANTES:
+
+1. Este é o código mais simples possível, eliminando toda a complexidade desnecessária.
+
+2. Substitua os valores no src do iframe:
+   - Porta correta (atualmente 3002)
+   - ID do formulário (abbc1d16-9672-4681-a476-8971b640246d)
+   - ID do tenant (28bdc7a7-a678-44e3-a8a9-5b4dfbb2cc74)
+
+3. Em produção, substitua o localhost pela URL correta do servidor.
+
+4. Para ajuste automático de altura, você precisaria adicionar JavaScript. A altura atual de 650px deve acomodar a maioria dos formulários sem scroll.
+
+5. Se este código não funcionar, o problema está na aplicação backend, não no código de incorporação.
+
+6. Teste cada ID separadamente para identificar qual funciona:
+   - Tente outros IDs de formulário do seu banco de dados
+   - Tente outros tenant_ids
+   - Verifique a porta correta do servidor 

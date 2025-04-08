@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Formulários - Soren Forms</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --success: #16a34a;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --bg-dark: #1f2937;
+            --bg-light: #f9fafb;
+            --text-dark: #1f2937;
+            --text-light: #f9fafb;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+        }
+        
+        h2 {
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            color: var(--primary-dark);
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .form-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        input, textarea {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+        
+        #diagnostico {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 6px;
+            background-color: #f5f5f5;
+            white-space: pre-wrap;
+        }
+        
+        #diagnostico.error {
+            background-color: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--error);
+        }
+        
+        .result-card {
+            border-left: 5px solid var(--primary);
+            padding: 15px;
+            background-color: #f9f9f9;
+            margin-top: 15px;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        .error {
+            border-left-color: var(--error);
+        }
+        
+        .warning {
+            border-left-color: var(--warning);
+        }
+        
+        .success {
+            border-left-color: var(--success);
+        }
+        
+        .param {
+            font-family: monospace;
+            background-color: #f2f2f2;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(79, 70, 229, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .instruction {
+            background-color: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 0 6px 6px 0;
+        }
+        
+        #solucao {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f0fdf4;
+            border-radius: 8px;
+            border: 1px solid #dcfce7;
+        }
+        
+        .test-btn {
+            margin-right: 10px;
+            margin-bottom: 10px;
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+        
+        .test-btn:hover {
+            background-color: #e5e7eb;
+        }
+        
+        @media (max-width: 640px) {
+            body {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🔍 Ferramenta de Diagnóstico de Formulários</h1>
+        
+        <div class="instruction">
+            <p>Esta ferramenta irá te ajudar a diagnosticar problemas com formulários que não estão sendo carregados corretamente. Preencha os campos abaixo com as informações do seu ambiente e clique em "Executar Diagnóstico".</p>
+        </div>
+        
+        <div class="form-container">
+            <div>
+                <label for="supabase-url">URL do Supabase:</label>
+                <input type="text" id="supabase-url" placeholder="https://xxxxxxxxxxxxxx.supabase.co">
+            </div>
+            
+            <div>
+                <label for="supabase-key">Chave Anônima do Supabase:</label>
+                <input type="text" id="supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+            
+            <div>
+                <label for="form-id">ID do Formulário:</label>
+                <input type="text" id="form-id" placeholder="ex: 1b75ea20-e64b-4a33-9033-c7b9318999bb">
+            </div>
+            
+            <div>
+                <label for="tenant-id">ID do Tenant (opcional):</label>
+                <input type="text" id="tenant-id" placeholder="ID do tenant se estiver usando multi-tenancy">
+            </div>
+            
+            <div class="buttons">
+                <button id="test1">Buscar pelo ID exato</button>
+                <button id="test2" class="test-btn">Listar todos os formulários</button>
+                <button id="test3" class="test-btn">Verificar estrutura da tabela</button>
+                <button id="test4" class="test-btn">Testar por tenant_id</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <h2>Resultado do Diagnóstico</h2>
+        <div id="diagnostico">Preencha os campos acima e clique em um dos botões para iniciar o diagnóstico.</div>
+    </div>
+    
+    <div class="card">
+        <h2>Solução Recomendada</h2>
+        <div id="solucao">As recomendações aparecerão aqui após a execução do diagnóstico.</div>
+    </div>
+    
+    <script>
+        // Elementos do DOM
+        const supabaseUrlEl = document.getElementById('supabase-url');
+        const supabaseKeyEl = document.getElementById('supabase-key');
+        const formIdEl = document.getElementById('form-id');
+        const tenantIdEl = document.getElementById('tenant-id');
+        const diagnosticoEl = document.getElementById('diagnostico');
+        const solucaoEl = document.getElementById('solucao');
+        
+        // Função para mostrar resultado
+        function showResult(html, isError = false) {
+            diagnosticoEl.innerHTML = html;
+            if (isError) {
+                diagnosticoEl.classList.add('error');
+            } else {
+                diagnosticoEl.classList.remove('error');
+            }
+        }
+        
+        // Função para formatar JSON
+        function formatJSON(obj) {
+            return JSON.stringify(obj, null, 2);
+        }
+        
+        // Teste 1: Buscar pelo ID exato
+        document.getElementById('test1').addEventListener('click', async () => {
+            const supabaseUrl = supabaseUrlEl.value;
+            const supabaseKey = supabaseKeyEl.value;
+            const formId = formIdEl.value;
+            
+            showResult(`<div class="loading"></div> Buscando formulário com ID exato: <span class="param">${formId}</span>...`);
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/forms?id=eq.${formId}`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+                }
+                
+                if (data.length === 0) {
+                    showResult(`
+                        <h3 class="error">Formulário não encontrado!</h3>
+                        <p>Não foi encontrado nenhum formulário com ID: <span class="param">${formId}</span></p>
+                        <p>Isso significa que o formulário realmente não existe no banco de dados ou o ID está incorreto.</p>
+                    `, true);
+                    
+                    updateSolucao(`
+                        <h3>Problema Identificado:</h3>
+                        <p>O formulário com ID: <span class="param">${formId}</span> não existe no banco de dados.</p>
+                        <h3>Solução:</h3>
+                        <p>Verifique se o ID está correto ou crie um novo formulário através do painel administrativo.</p>
+                    `);
+                } else {
+                    // Verificar se tem tenant_id
+                    if (data[0] && !data[0].hasOwnProperty('tenant_id')) {
+                        showResult(`
+                            <h3 class="warning">Formulário encontrado, mas sem tenant_id!</h3>
+                            <p>O formulário existe, mas não tem o campo tenant_id.</p>
+                            <pre>${formatJSON(data)}</pre>
+                        `);
+                        
+                        updateSolucao(`
+                            <h3>Problema Identificado:</h3>
+                            <p>O formulário existe, mas não tem o campo tenant_id.</p>
+                            <h3>Solução:</h3>
+                            <p>Verifique se a coluna tenant_id existe na tabela forms. Se não existir, você precisará modificar o código em ViewForm.tsx para não utilizar tenant_id na consulta.</p>
+                        `);
+                    } else {
+                        showResult(`
+                            <h3 class="success">Formulário encontrado!</h3>
+                            <p>O formulário existe no banco de dados.</p>
+                            <pre>${formatJSON(data)}</pre>
+                        `);
+                        
+                        updateSolucao(`
+                            <h3>Formulário Encontrado:</h3>
+                            <p>O formulário com ID: <span class="param">${formId}</span> existe no banco de dados.</p>
+                            <h3>Possíveis Problemas no App:</h3>
+                            <ul>
+                                <li>Verifique se o código está usando a URL correta do Supabase</li>
+                                <li>Verifique se a chave API está correta no arquivo .env</li>
+                                <li>Verifique se há erros de conexão no console do navegador</li>
+                                <li>O problema pode estar na conversão de tipos ou na consulta do Supabase</li>
+                            </ul>
+                        `);
+                    }
+                }
+            } catch (error) {
+                showResult(`
+                    <h3 class="error">Erro ao consultar API</h3>
+                    <p>${error.message}</p>
+                `, true);
+                
+                updateSolucao(`
+                    <h3>Problema de Conexão:</h3>
+                    <p>Não foi possível conectar ao Supabase para verificar o formulário.</p>
+                    <h3>Possíveis Soluções:</h3>
+                    <ul>
+                        <li>Verifique se a URL do Supabase está correta</li>
+                        <li>Verifique se a chave API tem permissão para acessar a tabela forms</li>
+                        <li>Verifique sua conexão com a internet</li>
+                    </ul>
+                `);
+            }
+        });
+        
+        // Teste 2: Buscar todos os formulários
+        document.getElementById('test2').addEventListener('click', async () => {
+            const supabaseUrl = supabaseUrlEl.value;
+            const supabaseKey = supabaseKeyEl.value;
+            
+            showResult(`<div class="loading"></div> Listando todos os formulários...`);
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/forms?select=id,name,tenant_id&limit=20`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+                }
+                
+                if (data.length === 0) {
+                    showResult(`
+                        <h3 class="warning">Nenhum formulário encontrado!</h3>
+                        <p>Não existem formulários na tabela forms.</p>
+                    `);
+                    
+                    updateSolucao(`
+                        <h3>Problema Identificado:</h3>
+                        <p>Não existem formulários no banco de dados.</p>
+                        <h3>Solução:</h3>
+                        <p>Crie um novo formulário através do painel administrativo.</p>
+                    `);
+                } else {
+                    showResult(`
+                        <h3 class="success">Formulários encontrados: ${data.length}</h3>
+                        <p>Lista de todos os formulários disponíveis:</p>
+                        <pre>${formatJSON(data)}</pre>
+                    `);
+                    
+                    updateSolucao(`
+                        <h3>Formulários Disponíveis:</h3>
+                        <p>Existem ${data.length} formulários no banco de dados.</p>
+                        <p>Use um dos IDs abaixo para testar a incorporação:</p>
+                        <ul>
+                            ${data.map(form => `<li><strong>ID:</strong> ${form.id} | <strong>Nome:</strong> ${form.name || 'Sem nome'}</li>`).join('')}
+                        </ul>
+                    `);
+                }
+            } catch (error) {
+                showResult(`
+                    <h3 class="error">Erro ao consultar API</h3>
+                    <p>${error.message}</p>
+                `, true);
+            }
+        });
+        
+        // Teste 3: Verificar estrutura da tabela
+        document.getElementById('test3').addEventListener('click', async () => {
+            const supabaseUrl = supabaseUrlEl.value;
+            const supabaseKey = supabaseKeyEl.value;
+            
+            showResult(`<div class="loading"></div> Verificando estrutura da tabela forms...`);
+            
+            try {
+                // Obter um formulário para ver sua estrutura
+                const response = await fetch(`${supabaseUrl}/rest/v1/forms?limit=1`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+                }
+                
+                if (data.length === 0) {
+                    showResult(`
+                        <h3 class="warning">Nenhum formulário encontrado!</h3>
+                        <p>Não é possível verificar a estrutura sem formulários na tabela.</p>
+                    `);
+                } else {
+                    const keys = Object.keys(data[0]);
+                    
+                    showResult(`
+                        <h3 class="success">Estrutura da tabela forms:</h3>
+                        <p>Colunas encontradas:</p>
+                        <ul>
+                            ${keys.map(key => `<li>${key}${key === 'tenant_id' ? ' ✅' : ''}</li>`).join('')}
+                        </ul>
+                        <p>Exemplo de registro completo:</p>
+                        <pre>${formatJSON(data[0])}</pre>
+                    `);
+                    
+                    // Verificar se tenant_id existe
+                    if (!keys.includes('tenant_id')) {
+                        updateSolucao(`
+                            <h3>Problema Identificado:</h3>
+                            <p>A coluna <span class="param">tenant_id</span> não existe na tabela forms!</p>
+                            <h3>Solução:</h3>
+                            <p>O código em ViewForm.tsx assume que existe uma coluna tenant_id. Você precisa:</p>
+                            <ol>
+                                <li>Adicionar esta coluna no banco de dados, OU</li>
+                                <li>Modificar o código para não usar tenant_id nas consultas</li>
+                            </ol>
+                            <p>Exemplo de modificação do código:</p>
+                            <pre>// Remover referências a tenant_id nas consultas
+const { data, error } = await supabase
+  .from("forms")
+  .select("*")
+  .eq("id", id)
+  .limit(1);</pre>
+                        `);
+                    } else {
+                        updateSolucao(`
+                            <h3>Estrutura OK:</h3>
+                            <p>A estrutura da tabela forms parece estar correta.</p>
+                            <p>Todas as colunas necessárias estão presentes.</p>
+                        `);
+                    }
+                }
+            } catch (error) {
+                showResult(`
+                    <h3 class="error">Erro ao consultar API</h3>
+                    <p>${error.message}</p>
+                `, true);
+            }
+        });
+        
+        // Teste 4: Buscar por tenant_id
+        document.getElementById('test4').addEventListener('click', async () => {
+            const supabaseUrl = supabaseUrlEl.value;
+            const supabaseKey = supabaseKeyEl.value;
+            const tenantId = tenantIdEl.value;
+            const formId = formIdEl.value;
+            
+            if (!tenantId) {
+                showResult(`
+                    <h3 class="error">ID do Tenant não informado</h3>
+                    <p>Informe o ID do tenant para testar esta funcionalidade.</p>
+                `, true);
+                return;
+            }
+            
+            showResult(`<div class="loading"></div> Verificando formulários com tenant_id: <span class="param">${tenantId}</span>...`);
+            
+            try {
+                const response = await fetch(`${supabaseUrl}/rest/v1/forms?tenant_id=eq.${tenantId}&select=id,name,tenant_id`, {
+                    method: 'GET',
+                    headers: {
+                        'apikey': supabaseKey,
+                        'Authorization': `Bearer ${supabaseKey}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    // Se o erro for relacionado a coluna não existente
+                    if (response.status === 400) {
+                        showResult(`
+                            <h3 class="error">Coluna tenant_id não existe!</h3>
+                            <p>A coluna tenant_id não existe na tabela forms.</p>
+                        `, true);
+                        
+                        updateSolucao(`
+                            <h3>Problema Identificado:</h3>
+                            <p>A coluna tenant_id não existe na tabela forms.</p>
+                            <h3>Solução:</h3>
+                            <p>Você precisa adicionar esta coluna ao banco de dados ou modificar o código para não usar tenant_id nas consultas.</p>
+                            <p>Código de incorporação sem tenant_id:</p>
+                            <pre>&lt;iframe 
+  src="http://localhost:3002/form/${formIdEl.value}?embed=true" 
+  style="width: 100%; height: 650px; border: none; border-radius: 8px;" 
+  title="Formulário Soren"
+  scrolling="no"&gt;
+&lt;/iframe&gt;</pre>
+                        `);
+                        return;
+                    }
+                    
+                    throw new Error(`Erro na requisição: ${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    showResult(`
+                        <h3 class="warning">Nenhum formulário encontrado!</h3>
+                        <p>Não existem formulários com tenant_id: <span class="param">${tenantId}</span></p>
+                    `);
+                    
+                    updateSolucao(`
+                        <h3>Problema Identificado:</h3>
+                        <p>Não existem formulários com tenant_id: <span class="param">${tenantId}</span></p>
+                        <h3>Solução:</h3>
+                        <p>Verifique se o tenant_id está correto ou use o código sem tenant_id:</p>
+                        <pre>&lt;iframe 
+  src="http://localhost:3002/form/${formIdEl.value}?embed=true" 
+  style="width: 100%; height: 650px; border: none; border-radius: 8px;" 
+  title="Formulário Soren"
+  scrolling="no"&gt;
+&lt;/iframe&gt;</pre>
+                    `);
+                } else {
+                    showResult(`
+                        <h3 class="success">Formulários encontrados: ${data.length}</h3>
+                        <p>Lista de formulários com tenant_id <span class="param">${tenantId}</span>:</p>
+                        <pre>${formatJSON(data)}</pre>
+                    `);
+                    
+                    updateSolucao(`
+                        <h3>Formulários Disponíveis para o Tenant:</h3>
+                        <p>Existem ${data.length} formulários com o tenant_id especificado.</p>
+                        <p>Use um dos IDs abaixo para testar a incorporação:</p>
+                        <ul>
+                            ${data.map(form => `<li><strong>ID:</strong> ${form.id} | <strong>Nome:</strong> ${form.name || 'Sem nome'}</li>`).join('')}
+                        </ul>
+                    `);
+                }
+            } catch (error) {
+                showResult(`
+                    <h3 class="error">Erro ao consultar API</h3>
+                    <p>${error.message}</p>
+                `, true);
+            }
+        });
+        
+        // Função para atualizar solução
+        function updateSolucao(html) {
+            solucaoEl.innerHTML = html;
+        }
+    </script>
+</body>
+</html> 

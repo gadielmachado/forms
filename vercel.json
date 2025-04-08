@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "buildCommand": "npm install && npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "installCommand": "npm install",
+  "routes": [
+    { "src": "/api/openai", "dest": "/api/openai.js" },
+    { "src": "/api/settings", "dest": "/api/settings.js" },
+    { "src": "/api/tenant_settings", "dest": "/api/tenant_settings.js" },
+    { "src": "/api/form-check", "dest": "/api/form-check.js" },
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ],
+  "github": {
+    "enabled": true
+  }
+} 
