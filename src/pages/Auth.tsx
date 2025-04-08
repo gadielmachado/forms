@@ -99,7 +99,7 @@ const Auth = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
                 </svg>
               </div>
-              <p className="text-blue-100">Analise dados com ferramentas intuitivas</p>
+              <p className="text-blue-100">Analise dados e crie propostas com IA</p>
             </div>
           </div>
         </div>
