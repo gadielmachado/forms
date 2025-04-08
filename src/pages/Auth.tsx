@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Mail, Lock, LogIn, UserPlus } from "lucide-react";
+import axios from "axios";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -13,20 +14,103 @@ const Auth = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Função para verificar se o email já está registrado
+  const checkEmailExists = async (email: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithOtp({
+        email: email,
+        options: {
+          shouldCreateUser: false
+        }
+      });
+      
+      // Se não houver erro e o método não retornar nada, significa que o email existe
+      // Supabase não tem um endpoint direto para verificar se o email existe
+      return !error;
+    } catch (error) {
+      console.error('Erro ao verificar email:', error);
+      return false;
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setSubscriptionError("");
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        // Verificar primeiro se o email já existe
+        setIsLoading(true);
+        setSubscriptionError("Verificando email...");
+        
+        const emailExists = await checkEmailExists(email);
+        
+        if (emailExists) {
+          setSubscriptionError("Este email já está registrado. Por favor, faça login com sua conta existente.");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Email não existe, verificar assinatura no Stripe
+        setSubscriptionError("Verificando sua assinatura...");
+        
+        // Adicionar timeout para a requisição
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos de timeout
+        
+        const response = await axios.post('/api/auth/verificar-assinante', 
+          { email },
+          { signal: controller.signal }
+        ).catch(error => {
+          // Se for erro de timeout ou rede, assumir que usuário não é assinante
+          if (error.name === 'AbortError' || error.code === 'ECONNABORTED' || !error.response) {
+            return { 
+              data: { 
+                success: false, 
+                message: "Para criar sua conta no Soren Forms, você precisa ser um assinante. Por favor, adquira uma assinatura para continuar."
+              }
+            };
+          }
+          throw error;
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.data.success) {
+          setSubscriptionError(response.data.message || "Você não é um assinante. Por favor, adquira uma assinatura para criar uma conta.");
+          setIsLoading(false);
+          return;
+        }
+        
+        // Se for assinante, continuar com o registro
+        const customerId = response.data.customer.id;
+        const subscriptionId = response.data.customer.subscription_id;
+        
+        // Registrar o usuário
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
-        if (error) throw error;
+        
+        if (signUpError) throw signUpError;
+        
+        if (authData.user) {
+          // Ignoramos completamente a tabela 'usuarios' enquanto o Supabase resolve o problema
+          // A verificação de assinatura já foi feita anteriormente através da API do Stripe
+          console.log('Dados do Stripe:', {
+            userId: authData.user.id,
+            email: email,
+            customerId: customerId,
+            subscriptionId: subscriptionId
+          });
+          // Nota: Quando o problema do Supabase for resolvido, podemos restaurar a inserção na tabela 'usuarios'
+        }
+
         toast({
           title: "Conta criada com sucesso!",
           description: "Você já pode fazer login.",
@@ -41,9 +125,20 @@ const Auth = () => {
         navigate("/");
       }
     } catch (error: any) {
+      console.error('Erro durante autenticação:', error);
+      
+      // Mensagens de erro mais amigáveis e específicas
+      let errorMessage = error.message;
+      
+      if (error.message.includes('database') || error.message.includes('Database')) {
+        errorMessage = "Houve um problema ao salvar seus dados. Tente novamente ou entre em contato com o suporte.";
+      } else if (error.message.includes('network') || error.message.includes('timeout')) {
+        errorMessage = "Problema de conexão. Verifique sua internet e tente novamente.";
+      }
+      
       toast({
         title: "Erro",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -183,6 +278,43 @@ const Auth = () => {
                 </div>
               </div>
             </div>
+
+            {subscriptionError && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 mb-4 shadow-sm">
+                <div className="flex items-center mb-3">
+                  <div className="flex-shrink-0 bg-blue-100 rounded-full p-2">
+                    {subscriptionError === "Verificando sua assinatura..." ? (
+                      <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">
+                      {subscriptionError === "Verificando sua assinatura..." ? "Verificando assinatura" : "Assinatura necessária"}
+                    </h3>
+                  </div>
+                </div>
+                <div className="text-sm text-blue-700 mb-3">
+                  {subscriptionError}
+                </div>
+                {subscriptionError !== "Verificando sua assinatura..." && (
+                  <a 
+                    href="https://buy.stripe.com/6oEg225u68Ivf2obIJ" 
+                    className="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 px-4 rounded-md transition-colors duration-200 font-medium"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    Adquirir assinatura agora
+                  </a>
+                )}
+              </div>
+            )}
 
             {!isSignUp && (
               <div className="flex items-center justify-between">

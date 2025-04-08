@@ -56,6 +56,37 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
         
         // Formatar os dados
         const userTenants = data.map(item => item.tenants) as Tenant[];
+        
+        // Se o usuário não tiver nenhum tenant, criar um padrão
+        if (userTenants.length === 0) {
+          const { data: tenantData, error: tenantError } = await supabase
+            .from('tenants')
+            .insert({
+              name: 'Minha Organização',
+              created_by: user.id
+            })
+            .select()
+            .single();
+            
+          if (tenantError) throw tenantError;
+          
+          const { error: userTenantError } = await supabase
+            .from('user_tenants')
+            .insert({
+              user_id: user.id,
+              tenant_id: tenantData.id,
+              role: 'admin'
+            });
+            
+          if (userTenantError) throw userTenantError;
+          
+          userTenants.push({
+            id: tenantData.id,
+            name: tenantData.name,
+            logo_url: tenantData.logo_url
+          });
+        }
+        
         setTenants(userTenants);
         
         // Se houver tenants, configurar o primeiro como atual
@@ -69,8 +100,6 @@ export const TenantProvider = ({ children }: { children: ReactNode }) => {
             
           setCurrentTenant(tenantToUse);
           localStorage.setItem('currentTenantId', tenantToUse.id);
-        } else {
-          setCurrentTenant(null);
         }
       } catch (error) {
         console.error("Erro ao carregar tenants:", error);

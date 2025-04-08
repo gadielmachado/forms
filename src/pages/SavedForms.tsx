@@ -1801,7 +1801,7 @@ ${generatedContent}`;
           <p className="text-muted-foreground mb-6">
             Crie seu primeiro formulário para começar a receber respostas.
           </p>
-          <Button onClick={() => navigate("/create")}>
+          <Button onClick={() => navigate("/")}>
             <Plus className="mr-2 h-4 w-4" /> Criar Formulário
           </Button>
         </div>
