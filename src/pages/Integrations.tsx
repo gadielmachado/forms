@@ -37,7 +37,10 @@ const SETTINGS_ID = 1;
 export default function Integrations() {
   const { currentTenant } = useTenant();
   const [adminEmail, setAdminEmail] = useState("");
+  const [redirectUrl, setRedirectUrl] = useState("");
+  const [isRedirectEnabled, setIsRedirectEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingRedirect, setIsSavingRedirect] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
@@ -52,6 +55,7 @@ export default function Integrations() {
 
   useEffect(() => {
     loadAdminEmail();
+    loadRedirectUrl();
     loadForms();
   }, []);
 
@@ -113,6 +117,57 @@ export default function Integrations() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadRedirectUrl = async () => {
+    if (!currentTenant) return;
+
+    try {
+      // Não vamos usar setIsLoading aqui para não interferir com outras operações
+      console.log("Carregando URL de redirecionamento...");
+
+      const { data, error } = await supabase
+        .from('settings')
+        .select('logo_url')  // Vamos usar logo_url para guardar a URL de redirecionamento
+        .eq('tenant_id', currentTenant.id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Configuração não encontrada - situação normal para novos usuários
+          console.log("Nenhuma configuração de redirecionamento encontrada");
+          setRedirectUrl(""); // Garantir que o estado esteja limpo
+          setIsRedirectEnabled(true); // Por padrão, o redirecionamento está ativado
+          return;
+        }
+        
+        // Apenas logar o erro, sem mostrar toast para o usuário
+        console.error("Erro ao carregar URL de redirecionamento:", error);
+        return;
+      }
+
+      // Extrair URL de redirecionamento e estado de ativação do campo logo_url
+      const storedUrl = data?.logo_url || "";
+      
+      if (storedUrl.startsWith("DISABLED:")) {
+        // Se a URL começa com DISABLED:, o redirecionamento está desativado
+        setRedirectUrl(storedUrl.replace("DISABLED:", ""));
+        setIsRedirectEnabled(false);
+      } else {
+        setRedirectUrl(storedUrl);
+        setIsRedirectEnabled(true);
+      }
+      
+      if (storedUrl) {
+        console.log("URL de redirecionamento carregada:", storedUrl);
+        console.log("Redirecionamento ativado:", !storedUrl.startsWith("DISABLED:"));
+      } else {
+        console.log("Nenhuma URL de redirecionamento configurada");
+      }
+    } catch (error) {
+      // Apenas logar o erro, sem exibir toast ao usuário
+      console.error("Erro ao carregar URL de redirecionamento:", error);
     }
   };
 
@@ -248,6 +303,80 @@ export default function Integrations() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleSaveRedirectUrl = async () => {
+    if (!currentTenant) return;
+
+    try {
+      setIsSavingRedirect(true);
+      console.log("Salvando URL de redirecionamento:", redirectUrl);
+      console.log("Estado do redirecionamento:", isRedirectEnabled ? "Ativado" : "Desativado");
+
+      // Primeiro buscar configuração existente para preservar outros valores
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('tenant_id', currentTenant.id)
+        .single();
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        console.error("Erro ao buscar configurações existentes:", fetchError);
+        throw new Error("Erro ao buscar configurações");
+      }
+
+      // Configuração base
+      const newSettings = {
+        tenant_id: currentTenant.id,
+        logo_url: isRedirectEnabled ? redirectUrl : `DISABLED:${redirectUrl}`,  // Prefixar com DISABLED: se desativado
+        updated_at: new Date().toISOString()
+      };
+      
+      // Preservar dados existentes
+      if (existingSettings) {
+        // Copiar todos os outros campos existentes, mantendo apenas logo_url como novo valor
+        Object.keys(existingSettings).forEach(key => {
+          if (key !== 'logo_url' && key !== 'updated_at') {
+            newSettings[key] = existingSettings[key];
+          }
+        });
+      }
+
+      // Salvar configurações
+      const { error } = await supabase
+        .from('settings')
+        .upsert(newSettings, {
+          onConflict: 'tenant_id'
+        });
+
+      if (error) {
+        console.error("Erro detalhado do Supabase:", JSON.stringify(error));
+        throw error;
+      }
+
+      toast({
+        title: "Configurações salvas",
+        description: "Configuração de redirecionamento atualizada com sucesso.",
+        variant: "success",
+      });
+      
+      console.log("Configuração de redirecionamento salva com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar URL de redirecionamento:", error);
+      let mensagemErro = "Não foi possível salvar a configuração de redirecionamento.";
+      
+      if (error.message) {
+        mensagemErro += ` Erro: ${error.message}`;
+      }
+      
+      toast({
+        title: "Erro ao salvar",
+        description: mensagemErro,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingRedirect(false);
     }
   };
 
@@ -475,6 +604,76 @@ export default function Integrations() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Redirecionamento pós-envio</CardTitle>
+              <CardDescription>
+                Configure um link para redirecionar os usuários após o envio do formulário
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center mb-4">
+                  <Label htmlFor="redirectEnabled" className="font-medium">Ativar redirecionamento</Label>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      type="button"
+                      onClick={() => setIsRedirectEnabled(!isRedirectEnabled)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${isRedirectEnabled ? 'bg-blue-600' : 'bg-gray-300'}`}
+                    >
+                      <span className={`${isRedirectEnabled ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
+                    </button>
+                    <span className={`text-sm ${isRedirectEnabled ? 'text-blue-600' : 'text-gray-500'}`}>
+                      {isRedirectEnabled ? 'Ativado' : 'Desativado'}
+                    </span>
+                  </div>
+                </div>
+                
+                <Label htmlFor="redirectUrl">URL de Redirecionamento {isRedirectEnabled ? '' : '(desativado)'}</Label>
+                <Input
+                  id="redirectUrl"
+                  type="url"
+                  placeholder="https://exemplo.com.br/agradecimento"
+                  value={redirectUrl}
+                  onChange={(e) => setRedirectUrl(e.target.value)}
+                  disabled={isLoading || isSavingRedirect}
+                  className={!isRedirectEnabled ? "opacity-70" : ""}
+                />
+                <p className="text-sm text-gray-500">
+                  {isRedirectEnabled 
+                    ? "Os usuários serão redirecionados para esta URL após o envio bem-sucedido do formulário." 
+                    : "O redirecionamento está desativado. Os usuários verão a mensagem de sucesso padrão."}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleSaveRedirectUrl}
+                  disabled={isSavingRedirect || isLoading}
+                >
+                  {isSavingRedirect ? "Salvando..." : "Salvar"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRedirectUrl("");
+                    setIsRedirectEnabled(false);
+                    setIsSavingRedirect(true);
+                    setTimeout(() => {
+                      handleSaveRedirectUrl();
+                    }, 100);
+                  }}
+                  disabled={isSavingRedirect || isLoading || !redirectUrl}
+                >
+                  Limpar URL
+                </Button>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-800">
+                <p><strong>Como funciona:</strong> Quando ativado, os usuários serão automaticamente redirecionados para esta URL após enviarem o formulário com sucesso.</p>
+                <p className="mt-1">Se desativado, os usuários verão a tela de confirmação padrão após o envio.</p>
+              </div>
             </CardContent>
           </Card>
         </div>

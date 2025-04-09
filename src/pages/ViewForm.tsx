@@ -7,6 +7,7 @@ import { Send, Loader2, Clock, Check, Mail, Phone } from "lucide-react";
 import { toast, useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import FormSuccessModal from "@/components/FormSuccessModal";
+import SuccessMessage from "@/components/SuccessMessage";
 import { cn } from "@/lib/utils";
 import emailjs from '@emailjs/browser';
 import { useTenant } from "@/contexts/TenantContext";
@@ -526,6 +527,8 @@ const ViewForm = () => {
     }
   }, [form, analyticsStarted]);
 
+  const [showAnimatedSuccess, setShowAnimatedSuccess] = useState(false);
+
   const handleSubmit = async () => {
     // Lógica para suportar formulários incorporados
     let tenantId: string | undefined = effectiveTenantId || currentTenant?.id;
@@ -690,34 +693,54 @@ const ViewForm = () => {
           // Buscar diretamente da tabela settings usando o tenant_id efetivo
           if (effectiveTenantId) {
             const { data, error } = await supabase
-        .from('settings')
-        .select('admin_email')
+              .from('settings')
+              .select('admin_email, logo_url') // Buscar também logo_url que armazena a URL de redirecionamento
               .eq('tenant_id', effectiveTenantId)
-        .single();
+              .single();
 
-            if (!error && data?.admin_email) {
-              console.log('Email recuperado com sucesso:', data.admin_email);
-              return data.admin_email;
+            if (!error) {
+              console.log('Dados de configuração recuperados:', data);
+              
+              // Processar URL de redirecionamento
+              let redirectUrl = null;
+              if (data?.logo_url) {
+                // Verificar se começa com DISABLED:
+                if (data.logo_url.startsWith('DISABLED:')) {
+                  console.log('Redirecionamento está desativado');
+                  // Não redirecionar, mesmo que tenha URL
+                  redirectUrl = null;
+                } else if (data.logo_url.trim()) {
+                  // URL válida e redirecionamento ativado
+                  redirectUrl = data.logo_url;
+                  console.log('Redirecionamento está ativado para:', redirectUrl);
+                }
+              }
+              
+              // Retornar o objeto completo com email e URL de redirecionamento
+              return {
+                adminEmail: data?.admin_email || null,
+                redirectUrl: redirectUrl
+              };
             }
             
             if (error) {
-              console.warn('Erro ao buscar email:', error.message);
+              console.warn('Erro ao buscar configurações:', error.message);
             }
           }
           
           // Tentar outras abordagens como fallback...
-          // ... (código existente)
           
-          return null;
+          return { adminEmail: null, redirectUrl: null };
         } catch (error) {
-          console.error('Erro ao buscar email do administrador:', error);
-          return null;
+          console.error('Erro ao buscar configurações do administrador:', error);
+          return { adminEmail: null, redirectUrl: null };
         }
       };
       
-      // Buscar o email
-      const adminEmail = await fetchAdminEmail();
+      // Buscar configurações
+      const { adminEmail, redirectUrl } = await fetchAdminEmail();
       console.log('Email do administrador final:', adminEmail || 'NÃO ENCONTRADO');
+      console.log('URL de redirecionamento:', redirectUrl || 'NÃO CONFIGURADA');
 
       if (!adminEmail) {
         console.warn('⚠️ Email do administrador não configurado');
@@ -727,11 +750,17 @@ const ViewForm = () => {
           variant: "destructive",
         });
         
-        // Mesmo sem email, continuar para mostrar o sucesso
-        setFormResponses({});
-        setCurrentStep(1);
-        setShowSuccess(true);
-        return;
+        // Mesmo sem email, continuar para mostrar o sucesso ou redirecionar
+        if (redirectUrl) {
+          handleRedirect(redirectUrl);
+          return;
+        } else {
+          // Mostrar mensagem de sucesso com animação
+          setFormResponses({});
+          setCurrentStep(1);
+          setShowAnimatedSuccess(true);
+          return;
+        }
       }
 
       // Verifique o retorno da API
@@ -777,28 +806,42 @@ const ViewForm = () => {
         
         console.log('Email enviado com sucesso:', emailResult.status, emailResult.text);
         
-        // Tudo concluído com sucesso
-        toast({
-          title: "Sucesso!",
-          description: "Suas respostas foram enviadas e a notificação por email foi processada.",
-          variant: "default",
-        });
+        // Se tiver URL de redirecionamento, redirecionar o usuário
+        if (redirectUrl) {
+          toast({
+            title: "Sucesso!",
+            description: "Suas respostas foram enviadas. Redirecionando...",
+            variant: "default",
+          });
+          
+          // Redirecionar após breve delay para permitir que o toast seja visto
+          handleRedirect(redirectUrl);
+          return;
+        } else {
+          // Mostrar mensagem de sucesso com animação
+          setFormResponses({});
+          setCurrentStep(1);
+          setShowAnimatedSuccess(true);
+          return;
+        }
       } catch (emailError: any) {
         // Melhorar o log de erro para mais detalhes
         console.error('Erro detalhado ao enviar email:', emailError);
         console.error('Mensagem de erro:', emailError.message);
         console.error('Status de erro (se disponível):', emailError.status);
         
-        toast({
-          title: "Problema com notificação por email",
-          description: `Suas respostas foram salvas, mas o email não pôde ser enviado: ${emailError.message}`,
-          variant: "destructive",
-        });
+        // Ainda redirecionar se tiver URL configurada, mesmo com erro de email
+        if (redirectUrl) {
+          handleRedirect(redirectUrl);
+          return;
+        } else {
+          // Mostrar mensagem de sucesso mesmo com erro de email
+          setFormResponses({});
+          setCurrentStep(1);
+          setShowAnimatedSuccess(true);
+          return;
+        }
       }
-
-      setFormResponses({});
-      setCurrentStep(1);
-      setShowSuccess(true);
 
     } catch (error: any) {
       console.error('Erro detalhado ao processar envio:', error);
@@ -810,6 +853,15 @@ const ViewForm = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Função para lidar com o redirecionamento
+  const handleRedirect = (url: string) => {
+    console.log('Redirecionando para:', url);
+    // Pequeno delay para garantir que o toast seja exibido
+    setTimeout(() => {
+      window.location.href = url;
+    }, 1500);
   };
 
   const getPlaceholder = (field: any) => {
@@ -1380,8 +1432,8 @@ const ViewForm = () => {
             <Loader2 className={`h-8 w-8 animate-spin ${currentTheme.colors.text}`} />
             <p className={`mt-4 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
               Carregando formulário...
-                    </p>
-                  </div>
+            </p>
+          </div>
         </div>
       ) : formError ? (
         renderErrorState()
@@ -1398,7 +1450,7 @@ const ViewForm = () => {
             <div className={`${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl sm:rounded-2xl shadow-md border p-4 sm:p-6 md:p-8`}>
               {/* Conteúdo do formulário */}
               {showSuccess ? (
-                // Estado de sucesso
+                // Estado de sucesso simples
                 <div className="py-8 text-center">
                   <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${currentTheme.mode === 'dark' ? 'bg-green-900/30' : 'bg-green-100'}`}>
                     <Check className={`h-6 w-6 ${currentTheme.mode === 'dark' ? 'text-green-400' : 'text-green-600'}`} />
@@ -1420,10 +1472,10 @@ const ViewForm = () => {
                       Voltar para o Início
                     </Button>
                   </div>
-              </div>
-            ) : !form?.fields || form.fields.length === 0 ? (
+                </div>
+              ) : !form?.fields || form.fields.length === 0 ? (
                 // Estado de formulário vazio
-              <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
+                <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
                   <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} mb-2`}>
                     Formulário vazio
                   </p>
@@ -1433,132 +1485,144 @@ const ViewForm = () => {
                   <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mt-4`}>
                     ID do formulário: {id}
                   </p>
-              </div>
-            ) : (
-                // Formulário normal
-              <>
-                {/* Indicadores de passo - adaptar para modo embed se necessário */}
-                {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
-
-            {/* Campos do Formulário */}
-            <div className="space-y-6">
-                  {getCurrentStepFields().length > 0 ? (
-                    <>
-                      {getCurrentStepFields().map(renderField)}
-                      {renderStepDivider()}
-                    </>
-                  ) : (
-                    <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
-                      <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
-                    </div>
-                  )}
-            </div>
-
-            {/* Botões de Navegação */}
-            <div className="flex justify-between pt-6">
-                  {hasStepDividers && !isFirstStep && (
-                <Button 
-                  onClick={prevStep} 
-                  variant="outline"
-                      className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                >
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  <span>Anterior</span>
-                </Button>
-              )}
-                  
-                  {hasStepDividers && !isLastStep ? (
-                <Button 
-                  onClick={nextStep} 
-                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
-                >
-                  <span>Próximo</span>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </Button>
+                </div>
               ) : (
-                <Button 
-                  onClick={handleSubmit} 
-                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? (
+                // Formulário normal
+                <>
+                  {/* Indicadores de passo - adaptar para modo embed se necessário */}
+                  {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
+
+                {/* Campos do Formulário */}
+                <div className="space-y-6">
+                      {getCurrentStepFields().length > 0 ? (
                         <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          <span>Enviando...</span>
+                          {getCurrentStepFields().map(renderField)}
+                          {renderStepDivider()}
                         </>
                       ) : (
-                        <>
-                  <span>Enviar</span>
-                  <svg 
-                    xmlns="http://www.w3.org/2000/svg" 
-                    className="h-4 w-4 ml-2" 
-                    fill="none" 
-                    viewBox="0 0 24 24" 
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  </svg>
-                        </>
+                        <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
+                          <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
+                        </div>
                       )}
-                </Button>
-              )}
+                </div>
+
+                {/* Botões de Navegação */}
+                <div className="flex justify-between pt-6">
+                      {hasStepDividers && !isFirstStep && (
+                    <Button 
+                      onClick={prevStep} 
+                      variant="outline"
+                          className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
+                    >
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                      <span>Anterior</span>
+                    </Button>
+                  )}
+                      
+                      {hasStepDividers && !isLastStep ? (
+                    <Button 
+                      onClick={nextStep} 
+                          className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
+                    >
+                      <span>Próximo</span>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Button>
+                  ) : (
+                    <Button 
+                      onClick={handleSubmit} 
+                          className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              <span>Enviando...</span>
+                            </>
+                          ) : (
+                            <>
+                      <span>Enviar</span>
+                      <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        className="h-4 w-4 ml-2" 
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                      </svg>
+                            </>
+                          )}
+                    </Button>
+                  )}
+                </div>
+                  </>
+                )}
             </div>
-              </>
-            )}
-          </div>
 
             {/* Coluna da Imagem - no desktop aparece ao lado, no mobile embaixo */}
-          {!isEmbedded && (
-              <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
-                <div className={isMobileDevice ? "" : "sticky top-8"}>
-                  <img
-                    src={form?.image_url 
-                      ? (form.image_url.startsWith('http') 
-                          ? form.image_url 
-                          : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
-                      : "/form-image.svg"}
-                alt="Imagem do Formulário"
-                    className="w-full h-auto rounded-2xl object-cover shadow-lg"
-                onError={(e) => {
-                  console.error("Erro ao carregar imagem:", e);
-                  e.currentTarget.src = "/form-image.svg";
-                }}
-              />
-                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                  Sobre este formulário
-                </h3>
-                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                  Complete todos os campos necessários. Suas respostas são importantes
-                  para nós.
-                </p>
+            {!isEmbedded && (
+                <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
+                  <div className={isMobileDevice ? "" : "sticky top-8"}>
+                    <img
+                      src={form?.image_url 
+                        ? (form.image_url.startsWith('http') 
+                            ? form.image_url 
+                            : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
+                        : "/form-image.svg"}
+                    alt="Imagem do Formulário"
+                        className="w-full h-auto rounded-2xl object-cover shadow-lg"
+                    onError={(e) => {
+                      console.error("Erro ao carregar imagem:", e);
+                      e.currentTarget.src = "/form-image.svg";
+                    }}
+                  />
+                    <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                      <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                      Sobre este formulário
+                    </h3>
+                      <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                      Complete todos os campos necessários. Suas respostas são importantes
+                      para nós.
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
-          )}
         </div>
-      </div>
       )}
 
-      {/* Substituir o Dialog de sucesso pelo novo FormSuccessModal */}
+      {/* Mensagem de sucesso animada */}
+      {showAnimatedSuccess && (
+        <SuccessMessage 
+          onClose={() => {
+            setShowAnimatedSuccess(false);
+            setFormResponses({});
+            setCurrentStep(1);
+          }}
+          message={`Suas respostas para "${form?.name || 'o formulário'}" foram enviadas com sucesso.`}
+        />
+      )}
+
+      {/* Dialog de sucesso padrão - mantido como fallback */}
       <FormSuccessModal 
-        isOpen={showSuccess}
+        isOpen={showSuccess && !showAnimatedSuccess}
         onClose={() => setShowSuccess(false)}
         onRestart={() => {
           setShowSuccess(false);
