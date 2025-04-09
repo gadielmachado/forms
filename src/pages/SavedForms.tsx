@@ -913,56 +913,77 @@ Formato: HTML com títulos e subtítulos.`;
             }
           ],
           temperature: 0.5,
-          max_tokens: 1500, // Reduzi ligeiramente o tamanho para evitar problemas
-          stream: false,
-          timeout: 60000 // Timeout de 1 minuto
+          max_tokens: 1500, // Tamanho reduzido para evitar problemas
+          stream: false
+          // Removido o parâmetro timeout que não é suportado pela API OpenAI
         })
       };
 
-      // Fazer a requisição com tratamento adequado
-      const response = await fetch(apiBaseUrl, requestOptions);
-      
-      // Verificar se a resposta é válida
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Erro na resposta da API:", response.status, errorText);
-        throw new Error(`Erro na API (${response.status}): ${errorText || "Sem detalhes do erro"}`);
-      }
-      
-      // Verificar se a resposta tem conteúdo
-      const responseText = await response.text();
-      if (!responseText || responseText.trim() === '') {
-        throw new Error("A API retornou uma resposta vazia");
-      }
-      
-      // Tentar fazer o parse do JSON com tratamento de erro
-      let data;
       try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error("Erro ao processar JSON:", parseError, "Resposta recebida:", responseText);
-        throw new Error("Falha ao processar a resposta da API. A resposta não é um JSON válido.");
-      }
-      
-      // Verificar se temos os dados esperados
-      if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-        console.error("Resposta da API não contém dados esperados:", data);
-        throw new Error("A API retornou uma resposta em formato inesperado.");
-      }
-      
-      // Extrair o conteúdo gerado
-      const generatedMessage = data.choices[0].message;
-      if (!generatedMessage || !generatedMessage.content) {
-        throw new Error("A resposta da API não contém o conteúdo esperado.");
-      }
-      
-      let generatedContent = generatedMessage.content.trim();
-      
-      // Remove tags HTML ou Markdown extras
-      generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
-      
-      // Formata com estilos
-      const styledContent = `
+        // Fazer a requisição com timeout manual usando AbortController
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
+        
+        // Fazer a requisição com tratamento adequado
+        const response = await fetch(apiBaseUrl, {
+          ...requestOptions,
+          signal: controller.signal
+        });
+        
+        // Limpar o timeout após a resposta
+        clearTimeout(timeoutId);
+        
+        // Verificar se a resposta é válida
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Erro na resposta da API:", response.status, errorText);
+          
+          // Tratamento específico para diferentes códigos de erro
+          if (response.status === 401) {
+            throw new Error("Erro de autenticação com a API. Verifique a chave da API.");
+          } else if (response.status === 429) {
+            throw new Error("Limite de requisições excedido. Aguarde um momento e tente novamente.");
+          } else if (response.status === 500) {
+            throw new Error("Erro interno do servidor. Tente novamente mais tarde.");
+          } else {
+            throw new Error(`Erro na API (${response.status}): ${errorText || "Sem detalhes do erro"}`);
+          }
+        }
+        
+        // Verificar se a resposta tem conteúdo
+        const responseText = await response.text();
+        if (!responseText || responseText.trim() === '') {
+          throw new Error("A API retornou uma resposta vazia");
+        }
+        
+        // Tentar fazer o parse do JSON com tratamento de erro
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("Erro ao processar JSON:", parseError, "Resposta recebida:", responseText);
+          throw new Error("Falha ao processar a resposta da API. A resposta não é um JSON válido.");
+        }
+        
+        // Verificar se temos os dados esperados
+        if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+          console.error("Resposta da API não contém dados esperados:", data);
+          throw new Error("A API retornou uma resposta em formato inesperado.");
+        }
+        
+        // Extrair o conteúdo gerado
+        const generatedMessage = data.choices[0].message;
+        if (!generatedMessage || !generatedMessage.content) {
+          throw new Error("A resposta da API não contém o conteúdo esperado.");
+        }
+        
+        let generatedContent = generatedMessage.content.trim();
+        
+        // Remove tags HTML ou Markdown extras
+        generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
+        
+        // Formata com estilos
+        const styledContent = `
 <style>
   h1 { color: #4361ee; font-size: 28px; margin-bottom: 18px; }
   h2 { color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
@@ -976,17 +997,23 @@ Formato: HTML com títulos e subtítulos.`;
   strong { color: #3a0ca3; }
 </style>
 ${generatedContent}`;
-      
-      setDocumentContent(styledContent);
-      
-      toast({
-        title: generationType === "relatorio" ? "Análise gerada com sucesso!" : "Proposta gerada com sucesso!",
-        description: generationType === "relatorio" 
-          ? "Revise e personalize a análise conforme necessário."
-          : "Revise e personalize a proposta conforme necessário.",
-        variant: "default",
-      });
-
+        
+        setDocumentContent(styledContent);
+        
+        toast({
+          title: generationType === "relatorio" ? "Análise gerada com sucesso!" : "Proposta gerada com sucesso!",
+          description: generationType === "relatorio" 
+            ? "Revise e personalize a análise conforme necessário."
+            : "Revise e personalize a proposta conforme necessário.",
+          variant: "default",
+        });
+      } catch (fetchError) {
+        // Tratar erros específicos do fetch
+        if (fetchError.name === 'AbortError') {
+          throw new Error("A requisição excedeu o tempo limite. Verifique sua conexão e tente novamente.");
+        }
+        throw fetchError;
+      }
     } catch (error: any) {
       console.error(generationType === "relatorio" ? "Erro ao gerar análise:" : "Erro ao gerar proposta:", error);
       toast({
