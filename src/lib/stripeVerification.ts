@@ -14,7 +14,8 @@ const SUBSCRIBED_EMAILS = [
   // Adicione o email que você usou para comprar a assinatura
   "gadielmachado.bm@gmail.com",
   "gadielbizarramachado@gmail.com",
-  "gadyel.bm@gmail.com"
+  "gadyel.bm@gmail.com",
+  "gadielmachado01@gmail.com"
 ];
 
 /**

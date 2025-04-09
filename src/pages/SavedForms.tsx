@@ -552,42 +552,6 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
       });
     });
 
-    // Criar uma tabela com todas as respostas
-    content += `<div style="overflow-x: auto; margin-bottom: 30px;">
-      <table style="width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14px;">
-        <thead>
-          <tr style="background-color: #f8f9fa;">
-            <th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">Data</th>`;
-            
-    // Cabeçalhos da tabela com todos os campos
-    Array.from(allFields).forEach(field => {
-      content += `<th style="padding: 12px; border: 1px solid #e2e8f0; text-align: left;">${field}</th>`;
-    });
-    
-    content += `</tr>
-        </thead>
-        <tbody>`;
-        
-    // Linhas da tabela com os dados de cada resposta
-    responses.forEach(response => {
-      const date = new Date(response.created_at).toLocaleString('pt-BR');
-      
-      content += `<tr>
-        <td style="padding: 10px; border: 1px solid #e2e8f0;">${date}</td>`;
-        
-      // Para cada campo possível, verificar se a resposta atual tem esse campo
-      Array.from(allFields).forEach(field => {
-        const value = response.response_data[field] || '-';
-        content += `<td style="padding: 10px; border: 1px solid #e2e8f0;">${value}</td>`;
-      });
-      
-      content += `</tr>`;
-    });
-    
-    content += `</tbody>
-      </table>
-    </div>`;
-
     // Análise detalhada de cada campo
     content += `<h2 style="color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">Análise Detalhada por Campo</h2>`;
 
@@ -903,75 +867,33 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
       let prompt = "";
       
       if (generationType === "relatorio") {
-        // Prompt específico para análise de relatório
-        prompt = `
-Você é um analista de dados especializado em criar análises detalhadas de relatórios. A partir dos dados abaixo, elabore uma análise completa que extraia insights valiosos, identifique tendências e forneça recomendações baseadas em evidências.
+        prompt = `Analise os dados abaixo e crie um relatório estruturado com resumo executivo, análise detalhada e recomendações.
 
-Informações do Relatório:
-Nome do Formulário: ${documentTitle.replace('Relatório - ', '')}
-Data de Criação: ${new Date().toLocaleDateString('pt-BR')}
-Dados Coletados:
+Dados:
 ${currentText}
 
-Requisitos da Análise:
-- Resumo Executivo: Apresente os principais pontos e descobertas de forma concisa.
-- Metodologia: Explique brevemente como os dados foram coletados e analisados.
-- Análise Detalhada: Analise os dados quantitativos e qualitativos, identificando padrões e tendências.
-- Insights: Destaque as descobertas mais relevantes e significativas dos dados.
-- Conclusões: Sintetize as principais conclusões da análise.
-- Recomendações: Forneça sugestões concretas baseadas nos dados analisados.
-
-Instruções Adicionais:
-- Estruture o documento utilizando títulos e subtítulos claros (por exemplo, use <h1> para o título principal, <h2> para seções, e <h3> para subtítulos).
-- Utilize gráficos e tabelas em HTML quando apropriado para visualizar os dados (descreva como esses elementos visuais seriam).
-- Garanta que a análise seja objetiva, rigorosa e baseada nas evidências apresentadas.
-- Retorne o documento em HTML limpo, sem linhas extras no início ou fim, para que seja renderizado corretamente.
-- NÃO inclua qualquer texto introdutório ou explicativo antes do conteúdo da análise.
-- IMPORTANTE: O HTML deve começar diretamente com o conteúdo, sem linhas em branco no início.
-`;
+Formato: HTML com títulos e subtítulos.`;
       } else {
-        // Mantém o prompt original para propostas
-        prompt = `
-Você é um assistente especializado em criar propostas comerciais formais e bem estruturadas. Baseado nas informações abaixo, elabore uma proposta que seja organizada, visualmente atraente e que utilize uma linguagem profissional e persuasiva.
+        prompt = `Crie uma proposta comercial baseada nos dados abaixo.
 
-Informações do Projeto:
-Nome do Projeto: ${documentTitle.replace('Proposta - ', '')}
-Data de Criação: ${new Date().toLocaleDateString('pt-BR')}
-Informações Coletadas:
+Dados:
 ${currentText}
 
-Requisitos da Proposta:
-- Introdução: Apresente o projeto e o cliente, estabelecendo o contexto.
-- Objetivos do Projeto: Detalhe os objetivos principais que o projeto pretende alcançar.
-- Escopo do Projeto: Descreva as atividades, entregáveis e a metodologia a ser aplicada.
-- Cronograma: Forneça um cronograma detalhado com as etapas do projeto e seus prazos.
-- Investimento e Condições Comerciais: Liste os valores, condições de pagamento e opções de investimento.
-- Benefícios e Resultados Esperados: Destaque os benefícios que o cliente terá com a execução do projeto.
-- Conclusão: Resuma a proposta e inclua uma chamada para ação.
-
-Instruções Adicionais:
-- Estruture o documento utilizando títulos e subtítulos claros (por exemplo, use <h1> para o título principal, <h2> para seções, e <h3> para subtítulos).
-- Utilize listas (por exemplo, <ul><li>...</li></ul>) para destacar pontos importantes.
-- Garanta que a proposta seja clara, coerente e visualmente organizada.
-- Retorne o documento em HTML limpo, sem linhas extras no início ou fim, para que seja renderizado corretamente.
-- NÃO inclua qualquer texto introdutório ou explicativo antes do conteúdo da proposta.
-- IMPORTANTE: O HTML deve começar diretamente com o conteúdo, sem linhas em branco no início.
-`;
+Formato: HTML com títulos e subtítulos.`;
       }
 
       // Determinar URL da API com base no ambiente
-      let apiBaseUrl = '/api/openai';  // URL para produção
+      let apiBaseUrl = '/api/openai';
       
-      // Para desenvolvimento local, use a URL completa com origem
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
         const port = window.location.port ? `:${window.location.port}` : '';
         apiBaseUrl = `${window.location.protocol}//${window.location.hostname}${port}/api/openai`;
       }
-      
-      console.log("Chamando API OpenAI em:", apiBaseUrl);
 
-      // Nova chamada à API através do proxy
-      const response = await fetch(apiBaseUrl, {
+      console.log("Enviando requisição para:", apiBaseUrl);
+      
+      // Configuração da requisição
+      const requestOptions = {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -990,49 +912,57 @@ Instruções Adicionais:
               content: prompt 
             }
           ],
-          temperature: 0.7,
-          max_tokens: 4000
+          temperature: 0.5,
+          max_tokens: 1500, // Reduzi ligeiramente o tamanho para evitar problemas
+          stream: false,
+          timeout: 60000 // Timeout de 1 minuto
         })
-      });
+      };
+
+      // Fazer a requisição com tratamento adequado
+      const response = await fetch(apiBaseUrl, requestOptions);
       
-      // Resto do código de processamento da resposta permanece o mesmo
-      const data = await response.json();
-      
-      // Tratamento de erros
-      if (response.status !== 200) {
-        console.error("Erro na API do ChatGPT:", data);
-        
-        if (response.status === 401) {
-          throw new Error("Erro de autenticação. Verifique sua chave de API.");
-        } else if (response.status === 429) {
-          throw new Error("Limite de requisições excedido. Aguarde um momento e tente novamente.");
-        } else if (response.status === 500) {
-          throw new Error("Erro no servidor da OpenAI. Tente novamente mais tarde.");
-        } else {
-          throw new Error(`Erro na API: ${data.error?.message || "Falha na chamada à API"}`);
-        }
+      // Verificar se a resposta é válida
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Erro na resposta da API:", response.status, errorText);
+        throw new Error(`Erro na API (${response.status}): ${errorText || "Sem detalhes do erro"}`);
       }
       
-      if (data.error) {
-        console.error("Erro na resposta da OpenAI:", data.error);
-        throw new Error(`Erro na API: ${data.error.message || "Falha na chamada à API"}`);
+      // Verificar se a resposta tem conteúdo
+      const responseText = await response.text();
+      if (!responseText || responseText.trim() === '') {
+        throw new Error("A API retornou uma resposta vazia");
       }
       
-      // Extrai e processa o texto gerado
-      if (data.choices && data.choices.length > 0) {
-        let generatedContent = data.choices[0].message.content;
-        console.log(generationType === "relatorio" ? "Análise gerada com sucesso" : "Proposta gerada com sucesso", 
-                    generatedContent.substring(0, 100) + "...");
-        
-        // Remove espaços extras no início e fim do texto
-        generatedContent = generatedContent.trim();
-        
-        // Remove tags HTML ou Markdown extras que possam existir
-        generatedContent = generatedContent.replace(/^```html\s*/i, '');
-        generatedContent = generatedContent.replace(/\s*```$/i, '');
-        
-        // Formata adequadamente com estilos
-        const styledContent = `
+      // Tentar fazer o parse do JSON com tratamento de erro
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Erro ao processar JSON:", parseError, "Resposta recebida:", responseText);
+        throw new Error("Falha ao processar a resposta da API. A resposta não é um JSON válido.");
+      }
+      
+      // Verificar se temos os dados esperados
+      if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+        console.error("Resposta da API não contém dados esperados:", data);
+        throw new Error("A API retornou uma resposta em formato inesperado.");
+      }
+      
+      // Extrair o conteúdo gerado
+      const generatedMessage = data.choices[0].message;
+      if (!generatedMessage || !generatedMessage.content) {
+        throw new Error("A resposta da API não contém o conteúdo esperado.");
+      }
+      
+      let generatedContent = generatedMessage.content.trim();
+      
+      // Remove tags HTML ou Markdown extras
+      generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
+      
+      // Formata com estilos
+      const styledContent = `
 <style>
   h1 { color: #4361ee; font-size: 28px; margin-bottom: 18px; }
   h2 { color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
@@ -1046,20 +976,16 @@ Instruções Adicionais:
   strong { color: #3a0ca3; }
 </style>
 ${generatedContent}`;
-        
-        // Atualiza o editor com o conteúdo formatado
-        setDocumentContent(styledContent);
-        
-        toast({
-          title: generationType === "relatorio" ? "Análise gerada com sucesso!" : "Proposta gerada com sucesso!",
-          description: generationType === "relatorio" 
-            ? "Revise e personalize a análise conforme necessário."
-            : "Revise e personalize a proposta conforme necessário.",
-          variant: "default",
-        });
-      } else {
-        throw new Error("A API não retornou conteúdo utilizável.");
-      }
+      
+      setDocumentContent(styledContent);
+      
+      toast({
+        title: generationType === "relatorio" ? "Análise gerada com sucesso!" : "Proposta gerada com sucesso!",
+        description: generationType === "relatorio" 
+          ? "Revise e personalize a análise conforme necessário."
+          : "Revise e personalize a proposta conforme necessário.",
+        variant: "default",
+      });
 
     } catch (error: any) {
       console.error(generationType === "relatorio" ? "Erro ao gerar análise:" : "Erro ao gerar proposta:", error);
@@ -1070,6 +996,428 @@ ${generatedContent}`;
       });
     } finally {
       setIsGeneratingContent(false);
+    }
+  };
+
+  // Adicione essa função para download do documento
+  const handleDownloadDocument = async (type: 'pdf' | 'docx') => {
+    try {
+      if (!editorRef.current) {
+        toast({
+          title: "Erro",
+          description: "Editor não encontrado",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const fileName = documentTitle || "documento";
+      
+      if (type === 'pdf') {
+        // Mostrar toast de carregamento
+        toast({
+          title: "Processando",
+          description: "Gerando PDF, aguarde...",
+        });
+        
+        // Obter o conteúdo HTML do editor
+        const contentElement = editorRef.current;
+        const htmlContent = contentElement.innerHTML;
+        
+        // Criar novo documento PDF com orientação retrato
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+        });
+        
+        // Configurações de estilo
+        const titleFontSize = 16;
+        const headerFontSize = 14;
+        const textFontSize = 12;
+        const marginLeft = 20;
+        const marginTop = 20;
+        const contentWidth = doc.internal.pageSize.width - (marginLeft * 2);
+        
+        // Função auxiliar para extrair texto do HTML
+        const extractTextFromHtml = (html) => {
+          const temp = document.createElement('div');
+          temp.innerHTML = html;
+          return temp.textContent || temp.innerText || '';
+        };
+        
+        // Função para processar elementos HTML e extrair seu conteúdo
+        const processElements = () => {
+          const temp = document.createElement('div');
+          temp.innerHTML = htmlContent;
+          
+          const elements = [];
+          const processNode = (node) => {
+            // Ignora nós de texto vazios e nós de comentário
+            if ((node.nodeType === 3 && node.textContent.trim() === '') || node.nodeType === 8) {
+              return;
+            }
+            
+            if (node.nodeType === 3) { // Nó de texto
+              if (node.textContent.trim()) {
+                elements.push({
+                  type: 'text',
+                  content: node.textContent.trim(),
+                  fontSize: textFontSize
+                });
+              }
+            } else if (node.nodeType === 1) { // Elementos HTML
+              const tagName = node.tagName.toLowerCase();
+              
+              // Tratamento específico por tipo de elemento
+              if (tagName === 'h1') {
+                elements.push({
+                  type: 'heading',
+                  content: node.textContent.trim(),
+                  fontSize: titleFontSize,
+                  isBold: true
+                });
+              } else if (tagName === 'h2') {
+                elements.push({
+                  type: 'heading',
+                  content: node.textContent.trim(),
+                  fontSize: headerFontSize,
+                  isBold: true
+                });
+              } else if (tagName === 'h3') {
+                elements.push({
+                  type: 'heading',
+                  content: node.textContent.trim(),
+                  fontSize: headerFontSize - 2,
+                  isBold: true
+                });
+              } else if (tagName === 'p') {
+                elements.push({
+                  type: 'paragraph',
+                  content: node.textContent.trim(),
+                  fontSize: textFontSize
+                });
+              } else if (tagName === 'table') {
+                // Extrair dados da tabela
+                const table = {
+                  type: 'table',
+                  headers: [],
+                  rows: []
+                };
+                
+                // Processar cabeçalhos
+                const headers = node.querySelectorAll('th');
+                headers.forEach(header => {
+                  table.headers.push(header.textContent.trim());
+                });
+                
+                // Processar linhas
+                const rows = node.querySelectorAll('tr');
+                rows.forEach(row => {
+                  // Pular linhas de cabeçalho
+                  if (row.querySelector('th')) return;
+                  
+                  const cells = row.querySelectorAll('td');
+                  const rowData = [];
+                  cells.forEach(cell => {
+                    rowData.push(cell.textContent.trim());
+                  });
+                  
+                  if (rowData.length > 0) {
+                    table.rows.push(rowData);
+                  }
+                });
+                
+                if (table.headers.length > 0 || table.rows.length > 0) {
+                  elements.push(table);
+                }
+              } else if (tagName === 'ul' || tagName === 'ol') {
+                const items = [];
+                const listItems = node.querySelectorAll('li');
+                listItems.forEach(item => {
+                  items.push(item.textContent.trim());
+                });
+                
+                elements.push({
+                  type: 'list',
+                  items: items,
+                  isOrdered: tagName === 'ol'
+                });
+              } else {
+                // Para outros elementos, processar seus filhos
+                node.childNodes.forEach(child => {
+                  processNode(child);
+                });
+              }
+            }
+          };
+          
+          // Processar todos os nós filhos do conteúdo
+          Array.from(temp.childNodes).forEach(processNode);
+          return elements;
+        };
+        
+        // Processar o conteúdo HTML
+        const elements = processElements();
+        
+        // Adicionar data e título ao PDF
+        let yPosition = marginTop;
+        
+        // Adicionar título
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(titleFontSize);
+        doc.text(fileName, marginLeft, yPosition);
+        yPosition += 10;
+        
+        // Adicionar data
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(textFontSize);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, marginLeft, yPosition);
+        yPosition += 15;
+        
+        // Renderizar elementos no PDF
+        elements.forEach(element => {
+          // Verificar se é necessário adicionar uma nova página
+          if (yPosition > doc.internal.pageSize.height - 30) {
+            doc.addPage();
+            yPosition = marginTop;
+          }
+          
+          if (element.type === 'heading' || element.type === 'paragraph' || element.type === 'text') {
+            // Configurar fonte
+            doc.setFont("helvetica", element.isBold ? "bold" : "normal");
+            doc.setFontSize(element.fontSize);
+            
+            // Quebrar texto longo em múltiplas linhas
+            const lines = doc.splitTextToSize(element.content, contentWidth);
+            
+            // Verificar se é necessário adicionar nova página
+            if (yPosition + (lines.length * 7) > doc.internal.pageSize.height - 20) {
+              doc.addPage();
+              yPosition = marginTop;
+            }
+            
+            // Desenhar texto
+            doc.text(lines, marginLeft, yPosition);
+            yPosition += (lines.length * 7) + (element.type === 'paragraph' ? 5 : 3);
+            
+            // Adicionar espaço extra após títulos
+            if (element.type === 'heading') {
+              yPosition += 5;
+            }
+          } else if (element.type === 'list') {
+            // Para cada item da lista
+            element.items.forEach((item, index) => {
+              // Verificar se é necessário adicionar nova página
+              if (yPosition > doc.internal.pageSize.height - 30) {
+                doc.addPage();
+                yPosition = marginTop;
+              }
+              
+              // Configurar fonte
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(textFontSize);
+              
+              // Prefixo do item (número ou ponto)
+              const prefix = element.isOrdered ? `${index + 1}. ` : '• ';
+              
+              // Quebrar texto longo em múltiplas linhas com recuo
+              const itemText = prefix + item;
+              const lines = doc.splitTextToSize(itemText, contentWidth - 5);
+              
+              // Desenhar texto
+              doc.text(lines, marginLeft, yPosition);
+              yPosition += (lines.length * 7) + 3;
+            });
+            
+            // Espaço após a lista
+            yPosition += 5;
+          } else if (element.type === 'table') {
+            // Configurações da tabela
+            const cellPadding = 3;
+            const cellHeight = 10;
+            
+            // Calcular largura das colunas (distribuição igual)
+            const numColumns = Math.max(
+              element.headers.length,
+              element.rows.length > 0 ? element.rows[0].length : 0
+            );
+            const colWidth = numColumns > 0 ? contentWidth / numColumns : contentWidth;
+            
+            // Desenhar cabeçalhos
+            if (element.headers.length > 0) {
+              // Verificar se é necessário adicionar nova página
+              if (yPosition > doc.internal.pageSize.height - 30) {
+                doc.addPage();
+                yPosition = marginTop;
+              }
+              
+              // Configurar fonte para cabeçalhos
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(textFontSize);
+              
+              // Desenhar células do cabeçalho
+              element.headers.forEach((header, idx) => {
+                // Calcular posição x
+                const x = marginLeft + (idx * colWidth);
+                
+                // Adicionar borda e fundo da célula
+                doc.setDrawColor(200, 200, 200);
+                doc.setFillColor(240, 240, 240);
+                doc.rect(x, yPosition - cellHeight + cellPadding, colWidth, cellHeight, 'FD');
+                
+                // Texto do cabeçalho
+                const headerText = doc.splitTextToSize(header, colWidth - (cellPadding * 2));
+                doc.text(headerText, x + cellPadding, yPosition - cellHeight/2 + cellPadding/2);
+              });
+              
+              // Avançar posição Y
+              yPosition += cellHeight;
+            }
+            
+            // Desenhar linhas de dados
+            element.rows.forEach(row => {
+              // Verificar se é necessário adicionar nova página
+              if (yPosition > doc.internal.pageSize.height - 30) {
+                doc.addPage();
+                yPosition = marginTop;
+              }
+              
+              // Configurar fonte para dados
+              doc.setFont("helvetica", "normal");
+              doc.setFontSize(textFontSize);
+              
+              // Altura para esta linha (pode aumentar se houver texto longo)
+              let maxCellHeight = cellHeight;
+              
+              // Calcular altura máxima da célula baseada no conteúdo
+              row.forEach((cell, idx) => {
+                const x = marginLeft + (idx * colWidth);
+                const text = doc.splitTextToSize(cell, colWidth - (cellPadding * 2));
+                const cellContentHeight = text.length * 7;
+                
+                if (cellContentHeight > maxCellHeight) {
+                  maxCellHeight = cellContentHeight + (cellPadding * 2);
+                }
+              });
+              
+              // Desenhar células
+              row.forEach((cell, idx) => {
+                const x = marginLeft + (idx * colWidth);
+                
+                // Adicionar borda da célula
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(x, yPosition - maxCellHeight + cellPadding, colWidth, maxCellHeight, 'S');
+                
+                // Texto da célula
+                const cellText = doc.splitTextToSize(cell, colWidth - (cellPadding * 2));
+                doc.text(cellText, x + cellPadding, yPosition - maxCellHeight + cellPadding * 2);
+              });
+              
+              // Avançar posição Y
+              yPosition += maxCellHeight;
+            });
+            
+            // Espaço após a tabela
+            yPosition += 10;
+          }
+        });
+        
+        // Adicionar numeração de páginas
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+          doc.setPage(i);
+          doc.setFontSize(10);
+          doc.text(
+            `Página ${i} de ${pageCount}`,
+            doc.internal.pageSize.width / 2,
+            doc.internal.pageSize.height - 10,
+            { align: 'center' }
+          );
+        }
+        
+        // Salvar o PDF
+        doc.save(`${fileName}.pdf`);
+        
+        toast({
+          title: "Sucesso",
+          description: "PDF baixado com sucesso!",
+          variant: "default",
+        });
+      } 
+      else if (type === 'docx') {
+        // Manter a implementação original para Word pois funciona bem
+        toast({
+          title: "Processando",
+          description: "Gerando documento Word, aguarde...",
+        });
+        
+        // Obter o conteúdo HTML
+        const htmlContent = editorRef.current.innerHTML;
+        
+        // Criar um arquivo HTML completo que o Word pode importar
+        const completeHtml = `
+          <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+                xmlns:w="urn:schemas-microsoft-com:office:word" 
+                xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+              <meta charset="utf-8">
+              <title>${documentTitle}</title>
+              <!--[if gte mso 9]>
+              <xml>
+                <w:WordDocument>
+                  <w:View>Print</w:View>
+                  <w:Zoom>90</w:Zoom>
+                  <w:DoNotOptimizeForBrowser/>
+                </w:WordDocument>
+              </xml>
+              <![endif]-->
+              <style>
+                /* Estilos para Word */
+                body {
+                  font-family: 'Calibri', sans-serif;
+                  font-size: 11pt;
+                }
+                h1 { font-size: 18pt; color: #4361ee; margin-bottom: 12pt; }
+                h2 { font-size: 14pt; color: #3a0ca3; margin-top: 12pt; margin-bottom: 6pt; }
+                h3 { font-size: 12pt; color: #4895ef; margin-top: 10pt; margin-bottom: 6pt; }
+                p { margin-bottom: 8pt; }
+                table { border-collapse: collapse; width: 100%; }
+                th, td { border: 1pt solid #e2e8f0; padding: 5pt; }
+              </style>
+            </head>
+            <body>
+              ${htmlContent}
+            </body>
+          </html>
+        `;
+        
+        // Criar blob
+        const blob = new Blob([completeHtml], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        
+        // Criar link para download
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${fileName}.doc`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Sucesso",
+          description: "Documento Word baixado com sucesso!",
+          variant: "default",
+        });
+      }
+    } catch (error: any) {
+      console.error("Erro ao baixar documento:", error);
+      toast({
+        title: "Erro ao baixar documento",
+        description: error.message || "Ocorreu um erro ao processar o download",
+        variant: "destructive",
+      });
     }
   };
 
