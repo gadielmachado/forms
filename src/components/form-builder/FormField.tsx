@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,11 @@ import {
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
 import TimeScrollSelector from "@/components/ui/time-scroll-selector";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 // Interface para as opções de checkbox
 interface CheckboxOption {
@@ -50,6 +55,9 @@ interface FormFieldProps {
   currentStep?: number;
   // Propriedade para controlar se o campo é obrigatório
   onRequiredChange?: (isRequired: boolean) => void;
+  // Propriedades para o campo de data
+  dateValue?: Date;
+  onDateChange?: (date: Date | undefined) => void;
 }
 
 const FormField = ({
@@ -69,6 +77,8 @@ const FormField = ({
   totalSteps = 1,
   currentStep = 1,
   onRequiredChange,
+  dateValue,
+  onDateChange,
 }: FormFieldProps) => {
   // Estado local para edição de opções quando as props não estão disponíveis
   const [localOptions, setLocalOptions] = useState<CheckboxOption[]>([
@@ -156,6 +166,12 @@ const FormField = ({
   };
 
   const [timeValue, setTimeValue] = useState("12:00");
+  const [date, setDate] = useState<Date | undefined>(dateValue);
+
+  // Atualizar date quando dateValue mudar
+  useEffect(() => {
+    setDate(dateValue);
+  }, [dateValue]);
 
   const getPlaceholder = () => {
     switch (type) {
@@ -220,6 +236,14 @@ const FormField = ({
         </div>
       </div>
     );
+  };
+
+  // Função para lidar com a mudança de data
+  const handleDateSelect = (newDate: Date | undefined) => {
+    setDate(newDate);
+    if (onDateChange) {
+      onDateChange(newDate);
+    }
   };
 
   const renderField = () => {
@@ -382,9 +406,73 @@ const FormField = ({
               )}
             </div>
             
-            {/* Componente de seleção de horário com listas roláveis */}
-            <div className="pt-2">
-              <TimeScrollSelector value={timeValue} onChange={setTimeValue} />
+            {/* Componente de seleção de horário melhorado */}
+            <div className="pt-2 border border-gray-100 rounded-lg p-4 bg-gray-50">
+              <TimeScrollSelector 
+                value={timeValue} 
+                onChange={setTimeValue}
+                hourLabel="Horas"
+                minuteLabel="Minutos"
+              />
+              <div className="mt-2 text-xs text-gray-500">
+                O usuário poderá selecionar ou digitar um horário no formato 24h
+              </div>
+            </div>
+            
+            {/* Toggle de campo obrigatório */}
+            <RequiredFieldToggle />
+          </div>
+        );
+      case "date":
+        return (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 mb-1 opacity-70">
+              <div className="p-1 rounded-md bg-purple-100">
+                <Calendar className="h-4 w-4 text-purple-500" />
+              </div>
+              <span className="text-xs font-medium text-purple-600">Data</span>
+            </div>
+            
+            <div className="flex items-center">
+              <input
+                value={label}
+                onChange={(e) => onLabelChange(e.target.value)}
+                placeholder="Digite o título do campo"
+                className="w-full bg-transparent text-lg font-medium outline-none"
+              />
+              {isRequired && (
+                <span className="text-red-500 font-medium text-sm ml-1">*</span>
+              )}
+            </div>
+            
+            <div className="relative pt-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal rounded-xl border-primary/30 focus-visible:ring-primary/30",
+                      !date && "text-gray-500"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4 text-purple-500" />
+                    {date ? format(date, "dd/MM/yyyy", { locale: ptBR }) : <span>DD/MM/AAAA</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={date}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                    locale={ptBR}
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <div className="mt-2 text-xs text-gray-500">
+                O usuário poderá selecionar uma data em um calendário
+              </div>
             </div>
             
             {/* Toggle de campo obrigatório */}

@@ -3,7 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, Clock, Check, Mail, Phone } from "lucide-react";
+import { Send, Loader2, Clock, Check, Mail, Phone, Calendar } from "lucide-react";
 import { toast, useToast } from "@/components/ui/use-toast";
 import { Card } from "@/components/ui/card";
 import FormSuccessModal from "@/components/FormSuccessModal";
@@ -16,6 +16,10 @@ import CustomDatePicker from "@/components/ui/custom-date-picker";
 import { v4 as uuidv4 } from 'uuid';
 import { useTheme } from "@/contexts/ThemeContext";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 
 interface CheckboxOption {
   id: string;
@@ -693,10 +697,10 @@ const ViewForm = () => {
           // Buscar diretamente da tabela settings usando o tenant_id efetivo
           if (effectiveTenantId) {
             const { data, error } = await supabase
-              .from('settings')
+        .from('settings')
               .select('admin_email, logo_url') // Buscar também logo_url que armazena a URL de redirecionamento
               .eq('tenant_id', effectiveTenantId)
-              .single();
+        .single();
 
             if (!error) {
               console.log('Dados de configuração recuperados:', data);
@@ -756,10 +760,10 @@ const ViewForm = () => {
           return;
         } else {
           // Mostrar mensagem de sucesso com animação
-          setFormResponses({});
-          setCurrentStep(1);
+        setFormResponses({});
+        setCurrentStep(1);
           setShowAnimatedSuccess(true);
-          return;
+        return;
         }
       }
 
@@ -808,11 +812,11 @@ const ViewForm = () => {
         
         // Se tiver URL de redirecionamento, redirecionar o usuário
         if (redirectUrl) {
-          toast({
-            title: "Sucesso!",
+        toast({
+          title: "Sucesso!",
             description: "Suas respostas foram enviadas. Redirecionando...",
-            variant: "default",
-          });
+          variant: "default",
+        });
           
           // Redirecionar após breve delay para permitir que o toast seja visto
           handleRedirect(redirectUrl);
@@ -836,8 +840,8 @@ const ViewForm = () => {
           return;
         } else {
           // Mostrar mensagem de sucesso mesmo com erro de email
-          setFormResponses({});
-          setCurrentStep(1);
+      setFormResponses({});
+      setCurrentStep(1);
           setShowAnimatedSuccess(true);
           return;
         }
@@ -884,6 +888,23 @@ const ViewForm = () => {
         return "Digite aqui...";
       default:
         return "Digite aqui...";
+    }
+  };
+
+  const [datePickers, setDatePickers] = useState<Record<string, Date | undefined>>({});
+
+  const handleDateSelect = (fieldId: string, date: Date | undefined) => {
+    setDatePickers(prev => ({ ...prev, [fieldId]: date }));
+    
+    if (date) {
+      const formattedDate = format(date, 'dd/MM/yyyy', { locale: ptBR });
+      setFormResponses(prev => ({ ...prev, [fieldId]: formattedDate }));
+    } else {
+      setFormResponses(prev => {
+        const newResponses = { ...prev };
+        delete newResponses[fieldId];
+        return newResponses;
+      });
     }
   };
 
@@ -960,14 +981,65 @@ const ViewForm = () => {
             )}
           </label>
           <div className={`${currentTheme.mode === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-300'} border rounded-lg p-4`}>
-            <div className="flex items-center space-x-2 mb-2">
+            <div className="flex items-center space-x-2 mb-3">
               <Clock className={currentTheme.colors.text} />
-              <span className={`text-xs font-medium ${currentTheme.colors.text}`}>Horário em formato 24h</span>
+              <span className={`text-xs font-medium ${currentTheme.colors.text}`}>Horário</span>
             </div>
             <TimeScrollSelector 
               value={formResponses[field.id] || "00:00"} 
               onChange={(value) => handleInputChange(field.id, value)}
+              hourLabel="Horas"
+              minuteLabel="Minutos"
+              className={`text-black ${currentTheme.mode === 'dark' ? 'text-white' : ''}`}
             />
+          </div>
+        </div>
+      );
+    }
+
+    // Tratamento específico para o campo de data
+    if (field.type === "date") {
+    return (
+      <div key={field.id} className="space-y-2">
+        <label className={`block text-sm font-medium ${currentTheme.mode === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+          {field.label}
+          {field.required && (
+            <span className="text-red-400 ml-1">*</span>
+          )}
+        </label>
+          <div className={`${currentTheme.mode === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-300'} border rounded-lg p-4`}>
+            <div className="flex items-center space-x-2 mb-2">
+              <Calendar className={currentTheme.colors.text} />
+              <span className={`text-xs font-medium ${currentTheme.colors.text}`}>Data</span>
+            </div>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    `w-full justify-start text-left font-normal ${currentTheme.colors.text}`,
+                    !datePickers[field.id] && "text-muted-foreground opacity-80"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {datePickers[field.id] ? (
+                    format(datePickers[field.id]!, 'PPP', { locale: ptBR })
+                  ) : (
+                    <span>Clique para selecionar</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={datePickers[field.id]}
+                  onSelect={(date) => handleDateSelect(field.id, date)}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       );
@@ -982,17 +1054,7 @@ const ViewForm = () => {
             <span className="text-red-400 ml-1">*</span>
           )}
         </label>
-        {field.type === "date" ? (
-          <div className="relative">
-            <CustomDatePicker
-              value={formResponses[field.id] || ""}
-              onChange={(value) => handleInputChange(field.id, value)}
-              required={field.required}
-              className="w-full"
-            />
-            <small className={`block mt-1 ${currentTheme.colors.text} text-xs`}>Formato: DD/MM/AAAA</small>
-          </div>
-        ) : field.type === "email" ? (
+        {field.type === "email" ? (
           <div className="relative">
             <div className="flex">
               <span className={`inline-flex items-center px-3 rounded-l-lg border ${currentTheme.mode === 'dark' ? 'border-gray-700 bg-gray-800 text-gray-400' : 'border-gray-300 bg-gray-50 text-gray-500'} border-r-0`}>
@@ -1432,8 +1494,8 @@ const ViewForm = () => {
             <Loader2 className={`h-8 w-8 animate-spin ${currentTheme.colors.text}`} />
             <p className={`mt-4 ${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm`}>
               Carregando formulário...
-            </p>
-          </div>
+                    </p>
+                  </div>
         </div>
       ) : formError ? (
         renderErrorState()
@@ -1472,10 +1534,10 @@ const ViewForm = () => {
                       Voltar para o Início
                     </Button>
                   </div>
-                </div>
-              ) : !form?.fields || form.fields.length === 0 ? (
+              </div>
+            ) : !form?.fields || form.fields.length === 0 ? (
                 // Estado de formulário vazio
-                <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
+              <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-6 text-center`}>
                   <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} mb-2`}>
                     Formulário vazio
                   </p>
@@ -1485,127 +1547,127 @@ const ViewForm = () => {
                   <p className={`${currentTheme.mode === 'dark' ? 'text-gray-500' : 'text-gray-600'} text-xs mt-4`}>
                     ID do formulário: {id}
                   </p>
-                </div>
-              ) : (
+              </div>
+            ) : (
                 // Formulário normal
-                <>
-                  {/* Indicadores de passo - adaptar para modo embed se necessário */}
-                  {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
+              <>
+                {/* Indicadores de passo - adaptar para modo embed se necessário */}
+                {(!isEmbedded || totalSteps > 1) && renderStepIndicators()}
 
-                {/* Campos do Formulário */}
-                <div className="space-y-6">
-                      {getCurrentStepFields().length > 0 ? (
-                        <>
-                          {getCurrentStepFields().map(renderField)}
-                          {renderStepDivider()}
-                        </>
-                      ) : (
-                        <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
-                          <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
-                        </div>
-                      )}
-                </div>
-
-                {/* Botões de Navegação */}
-                <div className="flex justify-between pt-6">
-                      {hasStepDividers && !isFirstStep && (
-                    <Button 
-                      onClick={prevStep} 
-                      variant="outline"
-                          className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
-                    >
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-4 w-4" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                      </svg>
-                      <span>Anterior</span>
-                    </Button>
-                  )}
-                      
-                      {hasStepDividers && !isLastStep ? (
-                    <Button 
-                      onClick={nextStep} 
-                          className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
-                    >
-                      <span>Próximo</span>
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-4 w-4" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Button>
+            {/* Campos do Formulário */}
+            <div className="space-y-6">
+                  {getCurrentStepFields().length > 0 ? (
+                    <>
+                      {getCurrentStepFields().map(renderField)}
+                      {renderStepDivider()}
+                    </>
                   ) : (
-                    <Button 
-                      onClick={handleSubmit} 
-                          className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              <span>Enviando...</span>
-                            </>
-                          ) : (
-                            <>
-                      <span>Enviar</span>
-                      <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        className="h-4 w-4 ml-2" 
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                      </svg>
-                            </>
-                          )}
-                    </Button>
+                    <div className={`${currentTheme.mode === 'dark' ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-100 border-amber-300'} border rounded-lg p-4 text-center`}>
+                      <p className={`${currentTheme.mode === 'dark' ? 'text-amber-400' : 'text-amber-600'} text-sm`}>Nenhum campo disponível neste passo</p>
+                    </div>
                   )}
-                </div>
-                  </>
-                )}
             </div>
 
-            {/* Coluna da Imagem - no desktop aparece ao lado, no mobile embaixo */}
-            {!isEmbedded && (
-                <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
-                  <div className={isMobileDevice ? "" : "sticky top-8"}>
-                    <img
-                      src={form?.image_url 
-                        ? (form.image_url.startsWith('http') 
-                            ? form.image_url 
-                            : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
-                        : "/form-image.svg"}
-                    alt="Imagem do Formulário"
-                        className="w-full h-auto rounded-2xl object-cover shadow-lg"
-                    onError={(e) => {
-                      console.error("Erro ao carregar imagem:", e);
-                      e.currentTarget.src = "/form-image.svg";
-                    }}
-                  />
-                    <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
-                      <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
-                      Sobre este formulário
-                    </h3>
-                      <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
-                      Complete todos os campos necessários. Suas respostas são importantes
-                      para nós.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            {/* Botões de Navegação */}
+            <div className="flex justify-between pt-6">
+                  {hasStepDividers && !isFirstStep && (
+                <Button 
+                  onClick={prevStep} 
+                  variant="outline"
+                      className={`min-w-[120px] h-11 flex items-center justify-center gap-2 ${currentTheme.mode === 'dark' ? 'text-gray-300 border-gray-700 bg-gray-800 hover:bg-gray-700' : 'text-gray-700 border-gray-300 bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span>Anterior</span>
+                </Button>
+              )}
+                  
+                  {hasStepDividers && !isLastStep ? (
+                <Button 
+                  onClick={nextStep} 
+                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center gap-2 transition-all duration-200 ${!isFirstStep ? 'ml-auto' : 'w-full'}`}
+                >
+                  <span>Próximo</span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleSubmit} 
+                      className={`min-w-[120px] h-11 ${currentTheme.colors.button} text-white flex items-center justify-center ${hasStepDividers && !isFirstStep ? 'ml-auto' : 'w-full'}`}
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          <span>Enviando...</span>
+                        </>
+                      ) : (
+                        <>
+                  <span>Enviar</span>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-4 w-4 ml-2" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  </svg>
+                        </>
+                      )}
+                </Button>
+              )}
+            </div>
+              </>
             )}
           </div>
+
+            {/* Coluna da Imagem - no desktop aparece ao lado, no mobile embaixo */}
+          {!isEmbedded && (
+              <div className={isMobileDevice ? "mt-8" : "hidden lg:block"}>
+                <div className={isMobileDevice ? "" : "sticky top-8"}>
+                  <img
+                    src={form?.image_url 
+                      ? (form.image_url.startsWith('http') 
+                          ? form.image_url 
+                          : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/images/${form.image_url}`)
+                      : "/form-image.svg"}
+                alt="Imagem do Formulário"
+                    className="w-full h-auto rounded-2xl object-cover shadow-lg"
+                onError={(e) => {
+                  console.error("Erro ao carregar imagem:", e);
+                  e.currentTarget.src = "/form-image.svg";
+                }}
+              />
+                <div className={`mt-6 ${currentTheme.mode === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-xl p-6 shadow-md border`}>
+                  <h3 className={`text-lg font-semibold ${currentTheme.colors.text} mb-2`}>
+                  Sobre este formulário
+                </h3>
+                  <p className={`${currentTheme.mode === 'dark' ? 'text-gray-400' : 'text-gray-600'} text-sm`}>
+                  Complete todos os campos necessários. Suas respostas são importantes
+                  para nós.
+                </p>
+              </div>
+            </div>
+          </div>
+          )}
         </div>
+      </div>
       )}
 
       {/* Mensagem de sucesso animada */}
