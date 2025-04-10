@@ -35,28 +35,79 @@ export default async function handler(req, res) {
       });
     }
     
+    // Verificar se o body contém os parâmetros necessários
+    if (!req.body || !req.body.model || !req.body.messages) {
+      console.error('Parâmetros da requisição inválidos');
+      return res.status(400).json({
+        error: 'Parâmetros inválidos. Verifique se "model" e "messages" estão presentes.'
+      });
+    }
+    
     console.log('Fazendo chamada para OpenAI API');
     
-    // Fazer a chamada para a API da OpenAI
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(req.body)
-    });
+    // Definir timeout para a requisição
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 85000); // 85 segundos de timeout
+    
+    try {
+      // Fazer a chamada para a API da OpenAI
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(req.body),
+        signal: controller.signal
+      });
+      
+      // Limpar o timeout após receber a resposta
+      clearTimeout(timeout);
+      
+      // Verificar status da resposta
+      if (!openaiResponse.ok) {
+        const errorData = await openaiResponse.json().catch(() => ({}));
+        console.error('Erro na API da OpenAI:', openaiResponse.status, errorData);
+        
+        // Retornar mensagens de erro mais informativas baseadas no código HTTP
+        if (openaiResponse.status === 401) {
+          return res.status(401).json({ 
+            error: 'Erro de autenticação. Verifique a chave da API OpenAI.' 
+          });
+        } else if (openaiResponse.status === 429) {
+          return res.status(429).json({ 
+            error: 'Limite de requisições excedido na API OpenAI. Aguarde um momento e tente novamente.' 
+          });
+        }
+        
+        return res.status(openaiResponse.status).json(errorData);
+      }
 
-    // Obter a resposta como JSON
-    const data = await openaiResponse.json();
-    
-    console.log('Resposta recebida da OpenAI API');
-    
-    // Retornar a resposta com o mesmo status
-    res.status(openaiResponse.status).json(data);
-    
+      // Obter a resposta como JSON
+      const data = await openaiResponse.json();
+      
+      console.log('Resposta recebida da OpenAI API com sucesso');
+      
+      // Retornar a resposta com o mesmo status
+      res.status(openaiResponse.status).json(data);
+      
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      
+      // Tratar erro de timeout
+      if (fetchError.name === 'AbortError') {
+        console.error('Timeout ao aguardar resposta da OpenAI API');
+        return res.status(504).json({ 
+          error: 'A requisição para a API OpenAI excedeu o tempo limite.' 
+        });
+      }
+      
+      throw fetchError;
+    }
   } catch (error) {
     console.error('Erro ao processar a requisição:', error);
-    res.status(500).json({ error: 'Erro interno no servidor: ' + error.message });
+    res.status(500).json({ 
+      error: 'Erro interno no servidor: ' + (error.message || 'Ocorreu um erro desconhecido') 
+    });
   }
 } 

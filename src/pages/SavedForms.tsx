@@ -163,6 +163,11 @@ export default function SavedForms() {
   const [showPageLayout, setShowPageLayout] = useState(false);
   // Adicione este estado para controlar o carregamento da exclusão
   const [isDeletingForm, setIsDeletingForm] = useState(false);
+  // Estados necessários para a função handleGenerateWithAI
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [progressStatus, setProgressStatus] = useState<string>("");
+  const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [showModal, setShowModal] = useState<boolean>(false);
 
   // Adicione estas constantes para dimensões A4
   const A4_WIDTH_PX = 794;  // Largura A4 em 96dpi
@@ -855,136 +860,126 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
     return content;
   };
 
-  const handleGenerateWithAI = async () => {
+  const handleGenerateWithAI = async (documentData: any, docType: string) => {
     try {
       setIsGeneratingContent(true);
       
-      const tempElement = document.createElement('div');
-      tempElement.innerHTML = documentContent;
-      const currentText = tempElement.textContent || tempElement.innerText || "";
+      // Criar um elemento temporário para extrair texto de documentContent
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = documentData.documentContent || documentContent;
+      const extractedText = tempDiv.textContent || tempDiv.innerText || "";
 
-      // Define o prompt com base no tipo de documento
+      // Define o prompt baseado no tipo de documento
       let prompt = "";
+      let systemRole = "";
       
-      if (generationType === "relatorio") {
+      if (docType === "report" || generationType === "relatorio") {
         prompt = `Analise os dados abaixo e crie um relatório estruturado com resumo executivo, análise detalhada e recomendações.
 
 Dados:
-${currentText}
+${extractedText}
 
-Formato: HTML com títulos e subtítulos.`;
+Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto em negrito, não use asteriscos (**) para formatação.`;
+        systemRole = "Você é um analista de dados especializado em criar análises detalhadas de relatórios. Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.";
       } else {
         prompt = `Crie uma proposta comercial baseada nos dados abaixo.
 
 Dados:
-${currentText}
+${extractedText}
 
-Formato: HTML com títulos e subtítulos.`;
+Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto em negrito, não use asteriscos (**) para formatação.`;
+        systemRole = "Você é um especialista em criar propostas comerciais profissionais. Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.";
       }
 
-      // Determinar URL da API com base no ambiente
-      let apiBaseUrl = '/api/openai';
-      
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        const port = window.location.port ? `:${window.location.port}` : '';
-        apiBaseUrl = `${window.location.protocol}//${window.location.hostname}${port}/api/openai`;
-      }
+      // Utilizando diretamente a API do OpenAI com uma chave temporária
+      const apiUrl = 'https://api.openai.com/v1/chat/completions';
+      const apiKey = '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';
 
-      console.log("Enviando requisição para:", apiBaseUrl);
+      console.log("Enviando requisição para OpenAI diretamente");
       
-      // Configuração da requisição
-      const requestOptions = {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo",
-          messages: [
-            { 
-              role: "system", 
-              content: generationType === "relatorio" 
-                ? "Você é um analista de dados especializado em criar análises detalhadas de relatórios."
-                : "Você é um especialista em criar propostas comerciais profissionais."
-            },
-            { 
-              role: "user", 
-              content: prompt 
-            }
-          ],
-          temperature: 0.5,
-          max_tokens: 1500, // Tamanho reduzido para evitar problemas
-          stream: false
-          // Removido o parâmetro timeout que não é suportado pela API OpenAI
-        })
-      };
-
+      // Notificar usuário
+      toast({
+        title: "Processando",
+        description: docType === "report" || generationType === "relatorio"
+          ? "Gerando análise com IA. Isso pode levar até 60 segundos..."
+          : "Gerando proposta com IA. Isso pode levar até 60 segundos...",
+      });
+      
+      // Configuração com timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+      
       try {
-        // Fazer a requisição com timeout manual usando AbortController
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
-        
-        // Fazer a requisição com tratamento adequado
-        const response = await fetch(apiBaseUrl, {
-          ...requestOptions,
+        // Chamada direta à API OpenAI
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [
+              { role: "system", content: systemRole },
+              { role: "user", content: prompt }
+            ],
+            temperature: 0.5,
+            max_tokens: 1500
+          }),
           signal: controller.signal
         });
         
-        // Limpar o timeout após a resposta
+        // Limpar timeout
         clearTimeout(timeoutId);
         
-        // Verificar se a resposta é válida
+        // Verificar resposta
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Erro na resposta da API:", response.status, errorText);
-          
-          // Tratamento específico para diferentes códigos de erro
-          if (response.status === 401) {
-            throw new Error("Erro de autenticação com a API. Verifique a chave da API.");
-          } else if (response.status === 429) {
-            throw new Error("Limite de requisições excedido. Aguarde um momento e tente novamente.");
-          } else if (response.status === 500) {
-            throw new Error("Erro interno do servidor. Tente novamente mais tarde.");
-          } else {
-            throw new Error(`Erro na API (${response.status}): ${errorText || "Sem detalhes do erro"}`);
-          }
+          const errorData = await response.json().catch(() => null);
+          const errorMsg = errorData?.error?.message || `${response.status}: ${response.statusText}`;
+          console.error("Erro na API OpenAI:", response.status, errorMsg);
+          throw new Error(`Erro na comunicação com a API OpenAI: ${errorMsg}`);
         }
+
+        // Processar resposta
+        const data = await response.json();
         
-        // Verificar se a resposta tem conteúdo
-        const responseText = await response.text();
-        if (!responseText || responseText.trim() === '') {
-          throw new Error("A API retornou uma resposta vazia");
+        if (!data.choices?.[0]?.message?.content) {
+          throw new Error("A API retornou uma resposta inválida");
         }
-        
-        // Tentar fazer o parse do JSON com tratamento de erro
-        let data;
-        try {
-          data = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error("Erro ao processar JSON:", parseError, "Resposta recebida:", responseText);
-          throw new Error("Falha ao processar a resposta da API. A resposta não é um JSON válido.");
-        }
-        
-        // Verificar se temos os dados esperados
-        if (!data || !data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
-          console.error("Resposta da API não contém dados esperados:", data);
-          throw new Error("A API retornou uma resposta em formato inesperado.");
-        }
-        
-        // Extrair o conteúdo gerado
-        const generatedMessage = data.choices[0].message;
-        if (!generatedMessage || !generatedMessage.content) {
-          throw new Error("A resposta da API não contém o conteúdo esperado.");
-        }
-        
-        let generatedContent = generatedMessage.content.trim();
-        
-        // Remove tags HTML ou Markdown extras
+
+        // Formatar conteúdo gerado
+        let generatedContent = data.choices[0].message.content.trim();
         generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
         
-        // Formata com estilos
+        // Converter asteriscos duplos para tags strong
+        generatedContent = generatedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // Normalizar espaçamentos excessivos
+        // 1. Normalizar quebras de linha múltiplas para uma única quebra
+        generatedContent = generatedContent.replace(/\n{3,}/g, '\n\n');
+        
+        // 2. Converter quebras de linha em tags <br> ou <p> de forma adequada
+        generatedContent = generatedContent.replace(/\n{2,}/g, '</p><p>');
+        generatedContent = generatedContent.replace(/\n/g, '<br>');
+        
+        // 3. Garantir que o conteúdo esteja dentro de tags <p> se não estiver em um bloco de texto
+        if (!generatedContent.startsWith('<h1') && 
+            !generatedContent.startsWith('<h2') && 
+            !generatedContent.startsWith('<h3') && 
+            !generatedContent.startsWith('<p') && 
+            !generatedContent.startsWith('<ul') && 
+            !generatedContent.startsWith('<ol') && 
+            !generatedContent.startsWith('<div')) {
+          generatedContent = `<p>${generatedContent}</p>`;
+        }
+        
+        // 4. Corrigir possíveis tags <p> quebradas devido à substituição
+        generatedContent = generatedContent.replace(/<\/p><p><br><\/p><p>/g, '</p><p>');
+        generatedContent = generatedContent.replace(/<p><\/p>/g, '');
+        
+        // Aplicar estilos (usando uma classe em vez de inline style, para facilitar remoção ao criar PDF)
         const styledContent = `
-<style>
+<style id="document-styles">
   h1 { color: #4361ee; font-size: 28px; margin-bottom: 18px; }
   h2 { color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
   h3 { color: #4895ef; font-size: 18px; margin-top: 20px; margin-bottom: 10px; }
@@ -995,29 +990,38 @@ Formato: HTML com títulos e subtítulos.`;
   th { background-color: #f8f9fa; color: #4361ee; text-align: left; padding: 12px; border: 1px solid #e2e8f0; }
   td { padding: 10px; border: 1px solid #e2e8f0; }
   strong { color: #3a0ca3; }
+  /* Controle de espaçamento para evitar espaços grandes entre parágrafos */
+  p + p { margin-top: 0.8em; }
+  p + h2, p + h3 { margin-top: 1.2em; }
+  h1 + p, h2 + p, h3 + p { margin-top: 0.5em; }
 </style>
 ${generatedContent}`;
         
+        // Atualizar documento e mostrar sucesso
         setDocumentContent(styledContent);
         
         toast({
-          title: generationType === "relatorio" ? "Análise gerada com sucesso!" : "Proposta gerada com sucesso!",
-          description: generationType === "relatorio" 
+          title: docType === "report" || generationType === "relatorio" 
+            ? "Análise gerada com sucesso!" 
+            : "Proposta gerada com sucesso!",
+          description: docType === "report" || generationType === "relatorio"
             ? "Revise e personalize a análise conforme necessário."
             : "Revise e personalize a proposta conforme necessário.",
           variant: "default",
         });
       } catch (fetchError) {
-        // Tratar erros específicos do fetch
+        clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
-          throw new Error("A requisição excedeu o tempo limite. Verifique sua conexão e tente novamente.");
+          throw new Error("A requisição excedeu o tempo limite. Tente novamente mais tarde.");
         }
         throw fetchError;
       }
     } catch (error: any) {
-      console.error(generationType === "relatorio" ? "Erro ao gerar análise:" : "Erro ao gerar proposta:", error);
+      console.error("Erro na geração:", error);
       toast({
-        title: generationType === "relatorio" ? "Erro ao gerar análise" : "Erro ao gerar proposta",
+        title: docType === "report" || generationType === "relatorio" 
+          ? "Erro ao gerar análise" 
+          : "Erro ao gerar proposta",
         description: error.message || "Não foi possível gerar o documento. Tente novamente.",
         variant: "destructive",
       });
@@ -1047,9 +1051,19 @@ ${generatedContent}`;
           description: "Gerando PDF, aguarde...",
         });
         
-        // Obter o conteúdo HTML do editor
+        // Obter o conteúdo HTML do editor e remover a tag style
         const contentElement = editorRef.current;
-        const htmlContent = contentElement.innerHTML;
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = contentElement.innerHTML;
+        
+        // Remover a tag style para evitar que apareça no PDF
+        const styleElement = tempDiv.querySelector('style');
+        if (styleElement) {
+          styleElement.remove();
+        }
+        
+        // Usar o conteúdo sem a tag style
+        const htmlContent = tempDiv.innerHTML;
         
         // Criar novo documento PDF com orientação retrato
         const doc = new jsPDF({
@@ -1742,7 +1756,7 @@ ${generatedContent}`;
               {/* Botão Gerar com IA */}
               <div className="flex items-center gap-2">
               <Button 
-                onClick={handleGenerateWithAI}
+                onClick={() => handleGenerateWithAI({documentContent}, generationType === "relatorio" ? "report" : "proposal")}
                 variant="outline" 
                 size="sm"
                 disabled={isGeneratingContent}
@@ -1755,6 +1769,8 @@ ${generatedContent}`;
                 )}
                 {isGeneratingContent 
                   ? "Gerando..." 
+                  : generationType === "relatorio"
+                    ? "Gerar análise de relatório" 
                     : "Gerar proposta com IA"}
               </Button>
               </div>
@@ -1934,6 +1950,68 @@ ${generatedContent}`;
               </div>
             </div>
           )}
+          
+          {/* Modal de status da geração */}
+          <Dialog open={showModal} onOpenChange={setShowModal}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>
+                  {generationError ? "Erro na geração" : "Gerando conteúdo"}
+                </DialogTitle>
+                <DialogDescription>
+                  {generationError || progressStatus}
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4">
+                {!generationError && !generatedContent && (
+                  <div className="flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                  </div>
+                )}
+                
+                {generatedContent && (
+                  <div className="border rounded-md p-3 bg-gray-50 dark:bg-gray-900">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      Conteúdo gerado com sucesso! Clique em "Aplicar" para usar este conteúdo.
+                    </p>
+                  </div>
+                )}
+                
+                {generationError && (
+                  <div className="border border-red-200 rounded-md p-3 bg-red-50 dark:bg-red-900/20">
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      {generationError}
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <DialogFooter>
+                {generationError && (
+                  <Button variant="outline" onClick={() => setShowModal(false)}>
+                    Fechar
+                  </Button>
+                )}
+                
+                {generatedContent && (
+                  <>
+                    <Button variant="outline" onClick={() => setShowModal(false)}>
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        setDocumentContent(generatedContent);
+                        setShowModal(false);
+                      }}
+                    >
+                      Aplicar
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           
           <div className="flex-1 overflow-auto p-6 bg-gray-100 dark:bg-gray-900">
             {/* Container centralizado para modo de página */}

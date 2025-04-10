@@ -50,6 +50,11 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Trash2 } from "lucide-react";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 interface FormFieldType {
   id: string;
@@ -59,6 +64,7 @@ interface FormFieldType {
   checkboxOptions?: { id: string; label: string; isEditing: boolean }[];
   isStepDivider?: boolean;
   required?: boolean;
+  dateValue?: Date;
 }
 
 interface FormFieldsListProps {
@@ -130,6 +136,7 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
       id: Math.random().toString(),
       type,
       label: "",
+      ...(type === "date" ? { dateValue: undefined } : {}),
     };
     
     if (!hasStepDividers) {
@@ -408,6 +415,14 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
     setCurrentStep(targetStepIndex);
   };
 
+  const handleDateChange = (id: string, date: Date | undefined) => {
+    onFieldsChange(
+      fields.map((field) =>
+        field.id === id ? { ...field, dateValue: date } : field
+      )
+    );
+  };
+
   const fieldTypes = [
     { value: "headline", label: "Título Principal", icon: <Type className="h-4 w-4" /> },
     { value: "text", label: "Texto Curto", icon: <TextCursor className="h-4 w-4" /> },
@@ -556,6 +571,10 @@ const FormFieldsList = ({ fields, onFieldsChange }: FormFieldsListProps) => {
                     onRequiredChange={(isRequired) => 
                       handleRequiredChange(field.id, isRequired)
                     }
+                    onDateChange={(date) => 
+                      handleDateChange(field.id, date)
+                    }
+                    dateValue={field.dateValue}
                     totalSteps={totalSteps}
                     currentStep={currentStep}
                   >
