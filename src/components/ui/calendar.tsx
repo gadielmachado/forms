@@ -17,6 +17,25 @@ export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 // Componente personalizado para a capção do calendário com seletores de mês e ano
 function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; onMonthChange: (date: Date) => void }) {
   const { goToMonth } = useNavigation();
+  const [isMobile, setIsMobile] = React.useState(false);
+  
+  React.useEffect(() => {
+    // Detectar se está em um dispositivo móvel
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+      const mobileRegex = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+      const touchEnabled = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      return mobileRegex.test(userAgent.toLowerCase()) || touchEnabled || window.innerWidth < 768;
+    };
+    
+    setIsMobile(checkMobile());
+    
+    // Atualizar quando a janela for redimensionada
+    const handleResize = () => setIsMobile(checkMobile());
+    window.addEventListener('resize', handleResize);
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // Meses em português
   const months = [
@@ -43,6 +62,50 @@ function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; on
     goToMonth(newDate);
   };
   
+  // Componente alternativo para dispositivos móveis usando botões nativos
+  if (isMobile) {
+    return (
+      <div className="flex justify-center items-center gap-2 py-2">
+        <div className="flex flex-col w-[125px]">
+          <label htmlFor="month-select" className="text-xs font-medium text-gray-500 mb-1">
+            Mês
+          </label>
+          <select
+            id="month-select"
+            value={displayMonth.getMonth().toString()}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            className="w-full h-10 px-2 py-1 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-auto"
+          >
+            {months.map((month, index) => (
+              <option key={index} value={index.toString()}>
+                {month}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div className="flex flex-col w-[100px]">
+          <label htmlFor="year-select" className="text-xs font-medium text-gray-500 mb-1">
+            Ano
+          </label>
+          <select
+            id="year-select"
+            value={displayMonth.getFullYear().toString()}
+            onChange={(e) => handleYearChange(e.target.value)}
+            className="w-full h-10 px-2 py-1 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-auto"
+          >
+            {years.map((year) => (
+              <option key={year} value={year.toString()}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
+  }
+  
+  // Versão original com SelectTrigger para desktop
   return (
     <div className="flex justify-center items-center gap-2 py-2">
       <Select
@@ -52,7 +115,7 @@ function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; on
         <SelectTrigger className="w-[125px] h-10 text-sm touch-manipulation">
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
-        <SelectContent className="max-h-80 overflow-y-auto">
+        <SelectContent className="max-h-80 overflow-y-auto" position="popper" sideOffset={4}>
           {months.map((month, index) => (
             <SelectItem 
               key={index} 
@@ -72,7 +135,7 @@ function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; on
         <SelectTrigger className="w-[100px] h-10 text-sm touch-manipulation">
           <SelectValue placeholder="Ano" />
         </SelectTrigger>
-        <SelectContent className="max-h-80 overflow-y-auto">
+        <SelectContent className="max-h-80 overflow-y-auto" position="popper" sideOffset={4}>
           {years.map((year) => (
             <SelectItem 
               key={year} 
