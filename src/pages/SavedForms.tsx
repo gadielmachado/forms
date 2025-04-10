@@ -892,8 +892,8 @@ Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto 
       }
 
       // Utilizando diretamente a API do OpenAI com uma chave temporária
-      const apiUrl = 'https://api.openai.com/v1/chat/completions';
-      const apiKey = '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';
+      const apiUrl = '/api/openai';
+      const apiKey = 'API_KEY_REMOVIDA'; // Deve ser configurada como variável de ambiente
 
       console.log("Enviando requisição para OpenAI diretamente");
       
