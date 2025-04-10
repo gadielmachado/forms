@@ -87,11 +87,12 @@ const TimeScrollSelector = ({
             <Button
               variant="ghost"
               size="sm"
-              className="p-0 h-8 w-full rounded-md hover:bg-gray-100 focus:outline-none"
+              className="p-0 h-12 w-full rounded-md hover:bg-gray-100 focus:outline-none touch-manipulation"
               onClick={incrementHours}
               disabled={disabled}
+              aria-label="Incrementar hora"
             >
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-6 w-6" />
             </Button>
             
             <div className="relative w-full">
@@ -99,10 +100,12 @@ const TimeScrollSelector = ({
                 value={hours}
                 onChange={(e) => setHours(parseInt(e.target.value, 10))}
                 disabled={disabled}
-                className="block w-full py-2 text-center text-lg font-medium text-gray-900 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none disabled:opacity-50"
+                className="block w-full h-14 py-2 text-center text-xl font-medium text-gray-900 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none disabled:opacity-50 touch-manipulation"
+                style={{fontSize: "22px"}}
+                aria-label="Selecionar hora"
               >
                 {hoursArray.map((hour) => (
-                  <option key={hour} value={hour}>
+                  <option key={hour} value={hour} className="py-2 text-lg">
                     {formatNumber(hour)}
                   </option>
                 ))}
@@ -112,17 +115,18 @@ const TimeScrollSelector = ({
             <Button
               variant="ghost"
               size="sm"
-              className="p-0 h-8 w-full rounded-md hover:bg-gray-100 focus:outline-none"
+              className="p-0 h-12 w-full rounded-md hover:bg-gray-100 focus:outline-none touch-manipulation"
               onClick={decrementHours}
               disabled={disabled}
+              aria-label="Decrementar hora"
             >
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-6 w-6" />
             </Button>
           </div>
         </div>
 
         <div className="flex items-center justify-center mt-7">
-          <span className="text-2xl font-bold text-gray-500">:</span>
+          <span className="text-3xl font-bold text-gray-500">:</span>
         </div>
 
         {/* Minutes Column */}
@@ -132,11 +136,12 @@ const TimeScrollSelector = ({
             <Button
               variant="ghost"
               size="sm"
-              className="p-0 h-8 w-full rounded-md hover:bg-gray-100 focus:outline-none"
+              className="p-0 h-12 w-full rounded-md hover:bg-gray-100 focus:outline-none touch-manipulation"
               onClick={incrementMinutes}
               disabled={disabled}
+              aria-label="Incrementar minutos"
             >
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-6 w-6" />
             </Button>
             
             <div className="relative w-full">
@@ -144,10 +149,12 @@ const TimeScrollSelector = ({
                 value={minutes}
                 onChange={(e) => setMinutes(parseInt(e.target.value, 10))}
                 disabled={disabled}
-                className="block w-full py-2 text-center text-lg font-medium text-gray-900 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none disabled:opacity-50"
+                className="block w-full h-14 py-2 text-center text-xl font-medium text-gray-900 bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none disabled:opacity-50 touch-manipulation"
+                style={{fontSize: "22px"}}
+                aria-label="Selecionar minutos"
               >
                 {minutesArray.map((minute) => (
-                  <option key={minute} value={minute}>
+                  <option key={minute} value={minute} className="py-2 text-lg">
                     {formatNumber(minute)}
                   </option>
                 ))}
@@ -157,11 +164,12 @@ const TimeScrollSelector = ({
             <Button
               variant="ghost"
               size="sm"
-              className="p-0 h-8 w-full rounded-md hover:bg-gray-100 focus:outline-none"
+              className="p-0 h-12 w-full rounded-md hover:bg-gray-100 focus:outline-none touch-manipulation"
               onClick={decrementMinutes}
               disabled={disabled}
+              aria-label="Decrementar minutos"
             >
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-6 w-6" />
             </Button>
           </div>
         </div>

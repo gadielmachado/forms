@@ -44,17 +44,21 @@ function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; on
   };
   
   return (
-    <div className="flex justify-center items-center gap-1 py-2">
+    <div className="flex justify-center items-center gap-2 py-2">
       <Select
         value={displayMonth.getMonth().toString()}
         onValueChange={handleMonthChange}
       >
-        <SelectTrigger className="w-[110px] h-8 text-sm">
+        <SelectTrigger className="w-[125px] h-10 text-sm touch-manipulation">
           <SelectValue placeholder="Mês" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-80 overflow-y-auto">
           {months.map((month, index) => (
-            <SelectItem key={index} value={index.toString()}>
+            <SelectItem 
+              key={index} 
+              value={index.toString()} 
+              className="cursor-pointer py-2.5 px-2"
+            >
               {month}
             </SelectItem>
           ))}
@@ -65,12 +69,16 @@ function CustomCaption({ displayMonth, onMonthChange }: { displayMonth: Date; on
         value={displayMonth.getFullYear().toString()}
         onValueChange={handleYearChange}
       >
-        <SelectTrigger className="w-[90px] h-8 text-sm">
+        <SelectTrigger className="w-[100px] h-10 text-sm touch-manipulation">
           <SelectValue placeholder="Ano" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="max-h-80 overflow-y-auto">
           {years.map((year) => (
-            <SelectItem key={year} value={year.toString()}>
+            <SelectItem 
+              key={year} 
+              value={year.toString()} 
+              className="cursor-pointer py-2.5 px-2"
+            >
               {year}
             </SelectItem>
           ))}
@@ -112,19 +120,19 @@ function Calendar({
         nav: "space-x-1 flex items-center",
         nav_button: cn(
           buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+          "h-10 w-10 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
         nav_button_previous: "absolute left-1",
         nav_button_next: "absolute right-1",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
-          "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+          "text-muted-foreground rounded-md w-10 font-normal text-[0.8rem]",
         row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+        cell: "h-10 w-10 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
         day: cn(
           buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "h-10 w-10 p-0 font-normal aria-selected:opacity-100 touch-manipulation"
         ),
         day_range_end: "day-range-end",
         day_selected:
@@ -139,8 +147,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
+        IconLeft: ({ ..._props }) => <ChevronLeft className="h-6 w-6" />,
+        IconRight: ({ ..._props }) => <ChevronRight className="h-6 w-6" />,
         Caption: ({ ...captionProps }) => (
           <CustomCaption 
             displayMonth={displayMonth} 
