@@ -1549,30 +1549,6 @@ ${generatedContent}`;
                 </p>
               </div>
             </div>
-            
-            {/* Caixa de texto estilo ChatGPT */}
-            <div className="mt-6 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 border-b border-gray-200 dark:border-gray-800">
-                <h4 className="font-medium text-gray-700 dark:text-gray-300">Instruções personalizadas</h4>
-              </div>
-              <div className="p-0">
-                <Textarea 
-                  placeholder="O que você quer que a IA gere usando as respostas do seu formulário?"
-                  className="min-h-[100px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none p-4 text-sm"
-                />
-              </div>
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row justify-between gap-3 sm:items-center">
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  Seja específico sobre o que deseja que a IA gere
-                </div>
-                <Button 
-                  size="sm" 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
-                >
-                  <Send className="h-4 w-4 mr-2" /> Enviar
-                </Button>
-              </div>
-            </div>
           </div>
           
           <div className="bg-gray-50/80 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-800">
