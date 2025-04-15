@@ -1488,7 +1488,7 @@ ${generatedContent}`;
       
       {/* Dialog para opções de Gerar com IA */}
       <Dialog open={isGenAIDialogOpen} onOpenChange={setIsGenAIDialogOpen}>
-        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-950 dark:to-gray-900 border-0 shadow-xl">
+        <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-950 dark:to-gray-900 border-0 shadow-xl max-h-[90vh] overflow-y-auto">
           <div className="bg-gradient-to-r from-indigo-600 to-blue-500 p-6">
             <DialogHeader className="text-white">
               <DialogTitle className="flex items-center gap-2 text-2xl font-semibold">
@@ -1500,21 +1500,21 @@ ${generatedContent}`;
             </DialogHeader>
           </div>
           
-          <div className="p-8">
+          <div className="p-4 sm:p-6">
             {/* Layout horizontal com grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Novo Card - Gerar Formulário */}
               <div 
                 onClick={handleGerarFormulario}
-                className="group flex flex-col h-full p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
+                className="group flex flex-col h-full p-4 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
               >
-                <div className="flex justify-center mb-4">
-                  <div className="p-3 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
-                    <Plus className="h-7 w-7 text-indigo-600 dark:text-indigo-400 group-hover:rotate-90 transition-transform duration-300" />
+                <div className="flex justify-center mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
+                    <Plus className="h-6 w-6 text-indigo-600 dark:text-indigo-400 group-hover:rotate-90 transition-transform duration-300" />
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-center text-gray-800 dark:text-gray-200">Gerar Formulário</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
+                <h3 className="text-base font-semibold mb-1 text-center text-gray-800 dark:text-gray-200">Gerar Formulário</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
                   Crie formulários automaticamente com base em suas necessidades específicas.
                 </p>
               </div>
@@ -1522,15 +1522,15 @@ ${generatedContent}`;
               {/* Opção de Proposta */}
               <div 
                 onClick={handleGerarProposta}
-                className="group flex flex-col h-full p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
+                className="group flex flex-col h-full p-4 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
               >
-                <div className="flex justify-center mb-4">
-                  <div className="p-3 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
-                    <FilePlus className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex justify-center mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
+                    <FilePlus className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-center text-gray-800 dark:text-gray-200">Proposta</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
+                <h3 className="text-base font-semibold mb-1 text-center text-gray-800 dark:text-gray-200">Proposta</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
                   Gere uma proposta comercial profissional com escopo e valores sugeridos.
                 </p>
               </div>
@@ -1538,38 +1538,38 @@ ${generatedContent}`;
               {/* Opção de Relatório */}
               <div 
                 onClick={handleGerarRelatorio}
-                className="group flex flex-col h-full p-5 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
+                className="group flex flex-col h-full p-4 rounded-xl border border-indigo-100 dark:border-indigo-900 hover:border-indigo-300 hover:bg-indigo-50/70 cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 dark:hover:border-indigo-700 dark:hover:bg-indigo-900/30"
               >
-                <div className="flex justify-center mb-4">
-                  <div className="p-3 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
-                    <FileSpreadsheet className="h-7 w-7 text-indigo-600 dark:text-indigo-400" />
+                <div className="flex justify-center mb-3">
+                  <div className="p-2 rounded-lg bg-indigo-100 dark:bg-indigo-900 group-hover:bg-indigo-200 dark:group-hover:bg-indigo-800 transition-colors">
+                    <FileSpreadsheet className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-center text-gray-800 dark:text-gray-200">Relatório</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
+                <h3 className="text-base font-semibold mb-1 text-center text-gray-800 dark:text-gray-200">Relatório</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300 text-center flex-grow leading-relaxed">
                   Crie relatórios analíticos com métricas e resumos dos dados coletados.
                 </p>
               </div>
             </div>
             
             {/* Caixa de texto estilo ChatGPT */}
-            <div className="mt-8 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
+            <div className="mt-6 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
               <div className="bg-gray-50 dark:bg-gray-900 p-3 border-b border-gray-200 dark:border-gray-800">
                 <h4 className="font-medium text-gray-700 dark:text-gray-300">Instruções personalizadas</h4>
               </div>
               <div className="p-0">
                 <Textarea 
                   placeholder="O que você quer que a IA gere usando as respostas do seu formulário?"
-                  className="min-h-[120px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none p-4 text-base"
+                  className="min-h-[100px] border-0 focus-visible:ring-0 focus-visible:ring-offset-0 resize-none p-4 text-sm"
                 />
               </div>
-              <div className="bg-gray-50 dark:bg-gray-900 p-3 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+              <div className="bg-gray-50 dark:bg-gray-900 p-3 border-t border-gray-200 dark:border-gray-800 flex flex-col sm:flex-row justify-between gap-3 sm:items-center">
                 <div className="text-xs text-gray-500 dark:text-gray-400">
                   Seja específico sobre o que deseja que a IA gere
                 </div>
                 <Button 
                   size="sm" 
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto"
                 >
                   <Send className="h-4 w-4 mr-2" /> Enviar
                 </Button>
@@ -1577,7 +1577,7 @@ ${generatedContent}`;
             </div>
           </div>
           
-          <div className="bg-gray-50/80 dark:bg-gray-900/50 p-5 border-t border-gray-100 dark:border-gray-800">
+          <div className="bg-gray-50/80 dark:bg-gray-900/50 p-4 border-t border-gray-100 dark:border-gray-800">
             <DialogFooter>
               <Button
                 variant="outline"
