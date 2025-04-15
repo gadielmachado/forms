@@ -894,9 +894,8 @@ Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto 
 
       // Utilizando diretamente a API do OpenAI com uma chave temporária
       const apiUrl = '/api/openai';
-      const apiKey = 'API_KEY_REMOVIDA'; // Deve ser configurada como variável de ambiente
-
-      console.log("Enviando requisição para OpenAI diretamente");
+      
+      console.log("Enviando requisição para API OpenAI");
       
       // Notificar usuário
       toast({
@@ -911,12 +910,11 @@ Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto 
       const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
       
       try {
-        // Chamada direta à API OpenAI
+        // Chamada para o endpoint proxy que usa a variável de ambiente OPENAI_API_KEY
         const response = await fetch(apiUrl, {
           method: "POST",
           headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
+            "Content-Type": "application/json"
           },
           body: JSON.stringify({
             model: "gpt-3.5-turbo",
