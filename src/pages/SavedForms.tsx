@@ -875,24 +875,97 @@ ${responses[0]?.[field.name] || 'Sem resposta'}`).join('\n\n')}
       let systemRole = "";
       
       if (docType === "report" || generationType === "relatorio") {
-        prompt = `Analise os dados abaixo e crie um relatório estruturado com resumo executivo, análise detalhada e recomendações.
+        prompt = `Analise os dados abaixo e crie um relatório analítico profundo e detalhado com as seguintes seções:
+
+1. RESUMO EXECUTIVO
+   - Síntese clara e objetiva dos principais pontos e descobertas
+   - Visão geral dos dados mais relevantes
+
+2. ANÁLISE DETALHADA
+   - Identificação de padrões e tendências
+   - Análise de cada campo com interpretação dos dados
+   - Correlações importantes entre diferentes informações
+   - Insights específicos sobre os resultados
+
+3. RECOMENDAÇÕES ESTRATÉGICAS
+   - Ações concretas baseadas nos dados
+   - Oportunidades identificadas para melhorias
+   - Próximos passos recomendados
+   - Sugestões práticas para implementação
+
+4. CONCLUSÃO
+   - Síntese final dos principais insights
+   - Perspectivas para o futuro
 
 Dados:
 ${extractedText}
 
+IMPORTANTE: Seja extremamente detalhado e específico. Não forneça análises genéricas ou superficiais.
+Extraia insights tangíveis dos dados. Faça conexões significativas entre as informações.
+Forneça recomendações concretas e fundamentadas nos dados.
 Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto em negrito, não use asteriscos (**) para formatação.`;
-        systemRole = "Você é um analista de dados especializado em criar análises detalhadas de relatórios. Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.";
+
+        systemRole = `Você é um analista de dados sênior especializado em criar análises aprofundadas e detalhadas de relatórios de pesquisa com insights acionáveis.
+
+Suas análises devem ser:
+1. Extremamente detalhadas e específicas aos dados fornecidos
+2. Ricas em insights que não são imediatamente óbvios
+3. Focadas em padrões, correlações e tendências nos dados
+4. Complementadas com recomendações estratégicas específicas
+
+Evite a todo custo:
+- Análises genéricas que poderiam se aplicar a qualquer conjunto de dados
+- Afirmações vagas sem fundamentação nos dados reais
+- Recomendações óbvias ou superficiais
+
+Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.`;
       } else {
-        prompt = `Crie uma proposta comercial baseada nos dados abaixo.
+        prompt = `Crie uma proposta comercial profissional e persuasiva baseada nos dados abaixo, incluindo:
+
+1. INTRODUÇÃO E CONTEXTO
+   - Apresentação personalizada com aspectos específicos do cliente
+   - Contextualização das necessidades identificadas
+
+2. SOLUÇÃO PROPOSTA
+   - Descrição detalhada dos serviços e produtos oferecidos
+   - Benefícios claros e específicos para este cliente
+   - Diferenciação competitiva da solução
+
+3. INVESTIMENTO E RETORNO
+   - Detalhamento de valores e planos apropriados
+   - Demonstração clara do retorno sobre investimento
+   - Vantagens exclusivas para o cliente
+
+4. PRÓXIMOS PASSOS
+   - Plano de implementação claro
+   - Cronograma sugerido
+   - Incentivo para ação imediata
 
 Dados:
 ${extractedText}
 
+IMPORTANTE: Personalize completamente para as necessidades específicas do cliente.
+Destaque benefícios específicos, não apenas características genéricas.
+Seja persuasivo e orientado a resultados.
 Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto em negrito, não use asteriscos (**) para formatação.`;
-        systemRole = "Você é um especialista em criar propostas comerciais profissionais. Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.";
+
+        systemRole = `Você é um especialista em desenvolvimento de negócios com vasta experiência em criar propostas comerciais personalizadas e altamente persuasivas.
+
+Suas propostas devem ser:
+1. Completamente personalizadas para o cliente específico
+2. Focadas em benefícios e resultados, não apenas características
+3. Persuasivas e orientadas à ação
+4. Profissionais e bem estruturadas
+
+Evite a todo custo:
+- Linguagem genérica ou templates óbvios
+- Foco excessivo em características sem conexão com benefícios
+- Propostas que parecem ser aplicáveis a qualquer cliente
+
+Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.`;
       }
 
-      // Utilizando diretamente a API do OpenAI com uma chave temporária
+      // Utilizando a API do OpenAI através do endpoint de proxy
       const apiUrl = '/api/openai';
       
       console.log("Enviando requisição para API OpenAI");
@@ -901,83 +974,223 @@ Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto 
       toast({
         title: "Processando",
         description: docType === "report" || generationType === "relatorio"
-          ? "Gerando análise com IA. Isso pode levar até 60 segundos..."
-          : "Gerando proposta com IA. Isso pode levar até 60 segundos...",
+          ? "Gerando análise detalhada com IA. Isso pode levar até 60 segundos..."
+          : "Gerando proposta personalizada com IA. Isso pode levar até 60 segundos...",
+        duration: 10000, // Aumentar duração para dar tempo ao usuário ver
       });
       
-      // Configuração com timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+      // Preparar o payload da requisição - limitando o tamanho para evitar problemas
+      const maxContentLength = 5000; // Limitar o tamanho do conteúdo (aumentado)
+      const truncatedPrompt = prompt.length > maxContentLength 
+        ? prompt.substring(0, maxContentLength) + "... [conteúdo truncado para evitar erros]" 
+        : prompt;
       
-      try {
-        // Chamada para o endpoint proxy que usa a variável de ambiente OPENAI_API_KEY
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [
-              { role: "system", content: systemRole },
-              { role: "user", content: prompt }
-            ],
-            temperature: 0.5,
-            max_tokens: 1500
-          }),
-          signal: controller.signal
-        });
-        
-        // Limpar timeout
-        clearTimeout(timeoutId);
-        
-        // Verificar resposta
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => null);
-          const errorMsg = errorData?.error?.message || `${response.status}: ${response.statusText}`;
-          console.error("Erro na API OpenAI:", response.status, errorMsg);
-          throw new Error(`Erro na comunicação com a API OpenAI: ${errorMsg}`);
+      const payload = {
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: systemRole },
+          { role: "user", content: truncatedPrompt }
+        ],
+        temperature: 0.7,  // Aumentado para mais criatividade
+        max_tokens: 1000  // Aumentado para permitir respostas mais completas
+      };
+      
+      console.log("Payload da requisição:", JSON.stringify(payload).substring(0, 300) + "...");
+      
+      // Implementar sistema de retry
+      const maxRetries = 2;
+      let currentRetry = 0;
+      let lastError = null;
+      
+      while (currentRetry <= maxRetries) {
+        // Se não for a primeira tentativa, notificar o usuário
+        if (currentRetry > 0) {
+          console.log(`Tentativa ${currentRetry}/${maxRetries} após falha anterior`);
+          toast({
+            title: "Nova tentativa",
+            description: `Tentativa ${currentRetry}/${maxRetries} de conectar à API...`,
+            duration: 3000,
+          });
         }
+        
+        // Configuração com timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout
+        
+        try {
+          // Chamada para o endpoint proxy que usa a variável de ambiente OPENAI_API_KEY
+          console.log("Iniciando fetch para", apiUrl);
+          
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload),
+            signal: controller.signal
+          });
+          
+          // Limpar timeout
+          clearTimeout(timeoutId);
+          
+          // Log da resposta para depuração
+          console.log("Resposta recebida com status:", response.status);
+          
+          // Em caso de erro, tentar obter o corpo da resposta como texto para debug
+          if (!response.ok) {
+            let errorMsg = '';
+            let responseText = '';
+            
+            try {
+              // Tentar obter o texto da resposta primeiro
+              responseText = await response.text();
+              console.log("Texto da resposta:", responseText.substring(0, 200));
+              
+              // Se o texto não estiver vazio, tentar convertê-lo para JSON
+              if (responseText && responseText.trim() !== '') {
+                try {
+                  const errorData = JSON.parse(responseText);
+                  errorMsg = errorData?.error || `${response.status}: ${response.statusText}`;
+                } catch (jsonError) {
+                  errorMsg = `${response.status}: ${response.statusText} (Erro ao processar resposta JSON)`;
+                }
+              } else {
+                errorMsg = `${response.status}: ${response.statusText} (Resposta vazia)`;
+              }
+            } catch (textError) {
+              errorMsg = `${response.status}: ${response.statusText} (Não foi possível ler o corpo da resposta)`;
+            }
+            
+            console.error("Erro na API OpenAI:", response.status, errorMsg);
+            
+            // Verificar se o erro é passível de retry (erros 429, 500, 502, 503, 504)
+            const retryableStatus = [429, 500, 502, 503, 504];
+            if (retryableStatus.includes(response.status) && currentRetry < maxRetries) {
+              console.log(`Status ${response.status} - Aguardando para retry...`);
+              
+              // Notificar usuário sobre o erro e nova tentativa
+              toast({
+                title: "Erro temporário",
+                description: `Erro ${response.status}. Tentando novamente em alguns segundos...`,
+                variant: "destructive",
+                duration: 5000,
+              });
+              
+              // Esperar tempo progressivo entre tentativas (exponential backoff)
+              const waitTime = 2000 * Math.pow(2, currentRetry);
+              await new Promise(r => setTimeout(r, waitTime));
+              currentRetry++;
+              continue;
+            }
+            
+            throw new Error(`Erro na comunicação com a API OpenAI: ${errorMsg}`);
+          }
 
-        // Processar resposta
-        const data = await response.json();
-        
-        if (!data.choices?.[0]?.message?.content) {
-          throw new Error("A API retornou uma resposta inválida");
-        }
+          // Processar resposta - obter o texto primeiro
+          const responseText = await response.text();
+          
+          // Verificar se o texto da resposta está vazio
+          if (!responseText || responseText.trim() === '') {
+            console.error("Resposta vazia da API");
+            
+            // Tentar novamente se não for a última tentativa
+            if (currentRetry < maxRetries) {
+              toast({
+                title: "Resposta vazia",
+                description: "Tentando novamente em alguns segundos...",
+                variant: "destructive",
+                duration: 3000,
+              });
+              
+              const waitTime = 2000 * Math.pow(2, currentRetry);
+              await new Promise(r => setTimeout(r, waitTime));
+              currentRetry++;
+              continue;
+            }
+            
+            throw new Error("A API retornou uma resposta vazia após múltiplas tentativas");
+          }
+          
+          // Tentar converter para JSON
+          let data;
+          try {
+            data = JSON.parse(responseText);
+            console.log("Dados recebidos da API:", data.choices ? "Resposta válida com choices" : "Sem choices na resposta");
+          } catch (jsonError) {
+            console.error("Erro ao fazer parse do JSON:", jsonError);
+            console.error("Texto da resposta:", responseText.substring(0, 200));
+            
+            // Tentar novamente se não for a última tentativa
+            if (currentRetry < maxRetries) {
+              toast({
+                title: "Erro de formatação",
+                description: "Resposta inválida. Tentando novamente...",
+                variant: "destructive",
+                duration: 3000,
+              });
+              
+              const waitTime = 2000 * Math.pow(2, currentRetry);
+              await new Promise(r => setTimeout(r, waitTime));
+              currentRetry++;
+              continue;
+            }
+            
+            throw new Error("Erro ao processar resposta JSON da API");
+          }
+          
+          if (!data.choices?.[0]?.message?.content) {
+            console.error("Resposta inválida da API:", JSON.stringify(data));
+            
+            // Tentar novamente se não for a última tentativa
+            if (currentRetry < maxRetries) {
+              toast({
+                title: "Resposta incompleta",
+                description: "Conteúdo não encontrado. Tentando novamente...",
+                variant: "destructive",
+                duration: 3000,
+              });
+              
+              const waitTime = 2000 * Math.pow(2, currentRetry);
+              await new Promise(r => setTimeout(r, waitTime));
+              currentRetry++;
+              continue;
+            }
+            
+            throw new Error("A API retornou uma resposta inválida sem conteúdo");
+          }
 
-        // Formatar conteúdo gerado
-        let generatedContent = data.choices[0].message.content.trim();
-        generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
-        
-        // Converter asteriscos duplos para tags strong
-        generatedContent = generatedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        // Normalizar espaçamentos excessivos
-        // 1. Normalizar quebras de linha múltiplas para uma única quebra
-        generatedContent = generatedContent.replace(/\n{3,}/g, '\n\n');
-        
-        // 2. Converter quebras de linha em tags <br> ou <p> de forma adequada
-        generatedContent = generatedContent.replace(/\n{2,}/g, '</p><p>');
-        generatedContent = generatedContent.replace(/\n/g, '<br>');
-        
-        // 3. Garantir que o conteúdo esteja dentro de tags <p> se não estiver em um bloco de texto
-        if (!generatedContent.startsWith('<h1') && 
-            !generatedContent.startsWith('<h2') && 
-            !generatedContent.startsWith('<h3') && 
-            !generatedContent.startsWith('<p') && 
-            !generatedContent.startsWith('<ul') && 
-            !generatedContent.startsWith('<ol') && 
-            !generatedContent.startsWith('<div')) {
-          generatedContent = `<p>${generatedContent}</p>`;
-        }
-        
-        // 4. Corrigir possíveis tags <p> quebradas devido à substituição
-        generatedContent = generatedContent.replace(/<\/p><p><br><\/p><p>/g, '</p><p>');
-        generatedContent = generatedContent.replace(/<p><\/p>/g, '');
-        
-        // Aplicar estilos (usando uma classe em vez de inline style, para facilitar remoção ao criar PDF)
-        const styledContent = `
+          // Formatar conteúdo gerado
+          let generatedContent = data.choices[0].message.content.trim();
+          generatedContent = generatedContent.replace(/^```html\s*/i, '').replace(/\s*```$/i, '');
+          
+          // Converter asteriscos duplos para tags strong
+          generatedContent = generatedContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          
+          // Normalizar espaçamentos excessivos
+          // 1. Normalizar quebras de linha múltiplas para uma única quebra
+          generatedContent = generatedContent.replace(/\n{3,}/g, '\n\n');
+          
+          // 2. Converter quebras de linha em tags <br> ou <p> de forma adequada
+          generatedContent = generatedContent.replace(/\n{2,}/g, '</p><p>');
+          generatedContent = generatedContent.replace(/\n/g, '<br>');
+          
+          // 3. Garantir que o conteúdo esteja dentro de tags <p> se não estiver em um bloco de texto
+          if (!generatedContent.startsWith('<h1') && 
+              !generatedContent.startsWith('<h2') && 
+              !generatedContent.startsWith('<h3') && 
+              !generatedContent.startsWith('<p') && 
+              !generatedContent.startsWith('<ul') && 
+              !generatedContent.startsWith('<ol') && 
+              !generatedContent.startsWith('<div')) {
+            generatedContent = `<p>${generatedContent}</p>`;
+          }
+          
+          // 4. Corrigir possíveis tags <p> quebradas devido à substituição
+          generatedContent = generatedContent.replace(/<\/p><p><br><\/p><p>/g, '</p><p>');
+          generatedContent = generatedContent.replace(/<p><\/p>/g, '');
+          
+          // Aplicar estilos (usando uma classe em vez de inline style, para facilitar remoção ao criar PDF)
+          const styledContent = `
 <style id="document-styles">
   h1 { color: #4361ee; font-size: 28px; margin-bottom: 18px; }
   h2 { color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
@@ -995,26 +1208,62 @@ Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto 
   h1 + p, h2 + p, h3 + p { margin-top: 0.5em; }
 </style>
 ${generatedContent}`;
-        
-        // Atualizar documento e mostrar sucesso
-        setDocumentContent(styledContent);
-        
-        toast({
-          title: docType === "report" || generationType === "relatorio" 
-            ? "Análise gerada com sucesso!" 
-            : "Proposta gerada com sucesso!",
-          description: docType === "report" || generationType === "relatorio"
-            ? "Revise e personalize a análise conforme necessário."
-            : "Revise e personalize a proposta conforme necessário.",
-          variant: "default",
-        });
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError.name === 'AbortError') {
-          throw new Error("A requisição excedeu o tempo limite. Tente novamente mais tarde.");
+          
+          // Atualizar documento e mostrar sucesso
+          setDocumentContent(styledContent);
+          
+          toast({
+            title: docType === "report" || generationType === "relatorio" 
+              ? "Análise gerada com sucesso!" 
+              : "Proposta gerada com sucesso!",
+            description: docType === "report" || generationType === "relatorio"
+              ? "Revise e personalize a análise conforme necessário."
+              : "Revise e personalize a proposta conforme necessário.",
+            variant: "default",
+          });
+          
+          // Sair do loop se tudo der certo
+          return;
+          
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          console.error(`Erro na tentativa ${currentRetry+1}:`, fetchError.message);
+          
+          lastError = fetchError;
+          
+          if (fetchError.name === 'AbortError') {
+            console.error("Timeout ao aguardar resposta da OpenAI API");
+            
+            // Se for o último retry, lançar erro
+            if (currentRetry >= maxRetries) {
+              throw new Error("A requisição excedeu o tempo limite após múltiplas tentativas. Tente novamente mais tarde.");
+            }
+            
+            // Notificar usuário sobre o timeout
+            toast({
+              title: "Tempo esgotado",
+              description: "O servidor demorou para responder. Tentando novamente...",
+              variant: "destructive",
+              duration: 3000,
+            });
+          }
+          
+          // Continuar para a próxima tentativa se não for a última
+          if (currentRetry < maxRetries) {
+            const waitTime = 2000 * Math.pow(2, currentRetry);
+            await new Promise(r => setTimeout(r, waitTime));
+            currentRetry++;
+            continue;
+          }
+          
+          // Se todas as tentativas falharam, lançar o erro
+          throw fetchError;
         }
-        throw fetchError;
       }
+      
+      // Se chegou aqui, todas as tentativas falharam
+      throw new Error(lastError?.message || "Falha na comunicação com a API após múltiplas tentativas");
+      
     } catch (error: any) {
       console.error("Erro na geração:", error);
       toast({
