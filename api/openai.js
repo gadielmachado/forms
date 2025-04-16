@@ -5,14 +5,14 @@ import { Configuration, OpenAIApi } from "openai";
 import { NextResponse } from "next/server";
 
 // Função para verificar se está se aproximando do timeout da função serverless
-function isApproachingTimeout(startTime, timeoutLimit = 9000) { // 9 segundos (deixando 1s de margem)
+function isApproachingTimeout(startTime, timeoutLimit = 8000) { // 8 segundos (para dar mais margem)
   const now = Date.now();
   const elapsedTime = now - startTime;
   return elapsedTime > timeoutLimit;
 }
 
 // Função para truncar o conteúdo de mensagens para evitar payloads muito grandes
-function truncateMessages(messages, maxLength = 2000) { // Reduzido para 2000 caracteres
+function truncateMessages(messages, maxLength = 1500) { // Reduzido para 1500 caracteres
   return messages.map(msg => {
     if (msg.content && msg.content.length > maxLength) {
       console.log(`Mensagem truncada de ${msg.content.length} para ${maxLength} caracteres`);
@@ -35,7 +35,7 @@ async function checkOpenAIHealth(apiKey) {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      timeout: 5000 // Timeout curto para verificação de saúde
+      timeout: 3000 // Timeout ainda mais curto para verificação de saúde
     });
     
     console.log(`[OpenAI Health Check] Status: ${response.status}`);
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
     }
 
     // Verificar e limitar o tamanho das mensagens para evitar timeout
-    const truncatedMessages = truncateMessages(messages, 2000); // Reduzido para 2000 caracteres
+    const truncatedMessages = truncateMessages(messages, 1500); // Reduzido para 1500 caracteres
     
     // Verificar tamanho do prompt completo
     let totalPromptLength = 0;
@@ -112,8 +112,20 @@ export default async function handler(req, res) {
     });
     console.log(`[OpenAI API] Tamanho total do prompt: ${totalPromptLength} caracteres`);
 
-    // Verificar e limitar max_tokens se necessário - reduzido para 500 máximo
-    const safeMaxTokens = Math.min(max_tokens || 800, 500);
+    // Verificar se o prompt é excessivamente grande
+    if (totalPromptLength > 10000) {
+      console.warn('[OpenAI API] ALERTA: Prompt muito grande, pode causar timeout');
+      return res.status(413).json({
+        error: 'Prompt muito grande para processamento seguro. Por favor, reduza o tamanho do prompt.',
+        debug_info: {
+          prompt_length: totalPromptLength,
+          max_recommended: 10000
+        }
+      });
+    }
+
+    // Verificar e limitar max_tokens se necessário - reduzido para 400 máximo
+    const safeMaxTokens = Math.min(max_tokens || 400, 400);
     if (safeMaxTokens !== max_tokens) {
       console.log(`[OpenAI API] max_tokens reduzido de ${max_tokens || 'indefinido'} para ${safeMaxTokens}`);
     }
@@ -154,25 +166,33 @@ export default async function handler(req, res) {
     console.log('[OpenAI API] Inicializando cliente OpenAI');
     const openai = new OpenAI({
       apiKey: apiKey,
-      timeout: 12000, // Reduzido para 12 segundos para melhor compatibilidade com serverless
+      timeout: 8000, // Reduzido para 8 segundos para garantir compatibilidade com serverless
     });
 
     // Implementar retry com backoff 
-    const maxRetries = 2; // Aumentado para 2 tentativas
+    const maxRetries = 1; // Reduzido para 1 tentativa para evitar exceder o limite de tempo
     let lastError = null;
     let lastResponseInfo = null;
 
     // Configurar timeout para a função inteira
-    const maxFunctionTime = 20000; // 20 segundos totais para toda a função
+    const maxFunctionTime = 15000; // 15 segundos totais para toda a função
     
     // Função para verificar se estamos perto do timeout
     const isApproachingTimeout = () => {
       const elapsed = Date.now() - functionStartTime;
-      const isClose = elapsed > (maxFunctionTime * 0.7); // 70% do tempo máximo
+      const isClose = elapsed > (maxFunctionTime * 0.6); // 60% do tempo máximo
       if (isClose) {
         console.log(`[OpenAI API] ALERTA: Aproximando-se do timeout. Tempo decorrido: ${elapsed}ms`);
       }
       return isClose;
+    };
+
+    // Rastreamento de tempos para diagnóstico
+    const timings = {
+      start: functionStartTime,
+      pre_api_call: 0,
+      post_api_call: 0,
+      attempts: []
     };
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -180,7 +200,7 @@ export default async function handler(req, res) {
         // Verificar se estamos perto do limite de tempo da função
         if (isApproachingTimeout()) {
           console.log('[OpenAI API] Aproximando-se do timeout da função serverless, retornando resposta parcial');
-          // Ao invés de abortar, retornar uma resposta parcial se tivermos alguma
+          // Ao invés de abortar, retornar resposta parcial se tivermos alguma
           if (lastResponseInfo) {
             return res.status(206).json({
               choices: [{ 
@@ -190,19 +210,23 @@ export default async function handler(req, res) {
                 finish_reason: "timeout" 
               }],
               warning: "Resposta parcial devido a restrições de tempo",
-              debug_info: lastResponseInfo
+              debug_info: {
+                ...lastResponseInfo,
+                timings
+              }
             });
           }
           throw new Error('Aproximando-se do timeout da função serverless');
         }
 
         if (attempt > 0) {
-          const waitTime = Math.min(1000 * Math.pow(1.5, attempt - 1), 3000); // Máximo de 3s de espera
+          const waitTime = Math.min(500 * Math.pow(1.5, attempt - 1), 1000); // Máximo de 1s de espera
           console.log(`[OpenAI API] Tentativa ${attempt+1}/${maxRetries+1} após falha anterior. Aguardando ${waitTime}ms`);
           await new Promise(resolve => setTimeout(resolve, waitTime));
         }
         
         const attemptStartTime = Date.now();
+        timings.pre_api_call = attemptStartTime - functionStartTime;
         console.log(`[OpenAI API] Enviando requisição para OpenAI (tentativa ${attempt+1}/${maxRetries+1}) em ${new Date(attemptStartTime).toISOString()}`);
         console.log(`[OpenAI API] Tempo decorrido desde o início: ${attemptStartTime - functionStartTime}ms`);
         
@@ -213,11 +237,19 @@ export default async function handler(req, res) {
           temperature: temperature || 0.7,
           max_tokens: safeMaxTokens,
           stream: false,
-          timeout: 10000, // 10 segundos para a chamada específica
+          timeout: 6000, // 6 segundos para a chamada específica
         });
         
         const attemptEndTime = Date.now();
         const attemptDuration = attemptEndTime - attemptStartTime;
+        timings.post_api_call = attemptEndTime - functionStartTime;
+        timings.attempts.push({
+          attempt: attempt + 1,
+          duration_ms: attemptDuration,
+          start_time: attemptStartTime - functionStartTime,
+          end_time: attemptEndTime - functionStartTime
+        });
+        
         console.log(`[OpenAI API] Resposta recebida em ${new Date(attemptEndTime).toISOString()}`);
         console.log(`[OpenAI API] Duração da tentativa: ${attemptDuration}ms`);
         console.log('[OpenAI API] Resposta recebida com sucesso');
@@ -227,7 +259,8 @@ export default async function handler(req, res) {
           id: response.id,
           model: response.model,
           duration_ms: attemptDuration,
-          total_tokens: response.usage?.total_tokens || 'N/A'
+          total_tokens: response.usage?.total_tokens || 'N/A',
+          timings
         };
         
         // Validar a resposta
@@ -248,6 +281,7 @@ export default async function handler(req, res) {
               choices_length: response.choices ? response.choices.length : 0,
               has_message: response.choices && response.choices[0] ? Boolean(response.choices[0].message) : false,
               total_duration: Date.now() - functionStartTime,
+              timings
             }
           });
         }
@@ -275,10 +309,29 @@ export default async function handler(req, res) {
         // Resposta válida, retornar para o cliente
         const totalDuration = Date.now() - functionStartTime;
         console.log(`[OpenAI API] Enviando resposta ao cliente após ${totalDuration}ms`);
+        
+        // Adicionar informações de diagnóstico para ajudar a resolver problemas de timeout
+        response._debug_info = {
+          processing_time_ms: totalDuration,
+          timings,
+          prompt_length: totalPromptLength,
+          response_length: response.choices[0].message.content.length,
+          max_tokens_used: safeMaxTokens
+        };
+        
         return res.status(200).json(response);
         
       } catch (error) {
         lastError = error;
+        
+        // Registrar o momento do erro para diagnóstico
+        timings.attempts.push({
+          attempt: attempt + 1,
+          error: true,
+          error_type: error.name,
+          error_message: error.message.substring(0, 100),
+          time: Date.now() - functionStartTime
+        });
         
         // Log detalhado do erro
         console.error(`[OpenAI API] Erro na tentativa ${attempt + 1} (${Date.now() - functionStartTime}ms desde o início):`, error.message);
@@ -288,11 +341,23 @@ export default async function handler(req, res) {
           console.error('[OpenAI API] Status:', error.response.status);
           console.error('[OpenAI API] Headers:', JSON.stringify(error.response.headers));
           
+          // Adicionar headers ao diagnóstico
+          timings.response_status = error.response.status;
+          timings.response_headers = {};
+          
+          for (const [key, value] of Object.entries(error.response.headers)) {
+            if (key.startsWith('x-') || key.startsWith('openai-') || 
+                ['content-type', 'date', 'server'].includes(key)) {
+              timings.response_headers[key] = value;
+            }
+          }
+          
           try {
             const errorData = typeof error.response.data === 'string' 
               ? JSON.parse(error.response.data) 
               : error.response.data;
             console.error('[OpenAI API] Data:', JSON.stringify(errorData).substring(0, 500));
+            timings.response_data = JSON.stringify(errorData).substring(0, 200);
           } catch (jsonError) {
             console.error('[OpenAI API] Erro ao analisar response.data:', 
               typeof error.response.data === 'string' ? error.response.data.substring(0, 200) : '[Não é string]');
@@ -320,7 +385,8 @@ export default async function handler(req, res) {
               debug_info: {
                 ...lastResponseInfo,
                 error_message: error.message,
-                error_type: error.name
+                error_type: error.name,
+                timings
               }
             });
           }
@@ -330,7 +396,8 @@ export default async function handler(req, res) {
             debug_info: {
               error_message: error.message,
               error_type: error.name,
-              total_duration: Date.now() - functionStartTime
+              total_duration: Date.now() - functionStartTime,
+              timings
             }
           });
         }
@@ -412,15 +479,15 @@ export default async function handler(req, res) {
     }
     
     // Verificar se o erro é relacionado ao timeout do serverless
-    if (totalDuration > 15000 || error.message.includes('timeout') || 
+    if (totalDuration > 10000 || error.message.includes('timeout') || 
         error.message.includes('Tempo limite') || error.message.includes('serverless')) {
       statusCode = 504;
       errorMessage = 'A requisição excedeu o tempo limite do servidor. Tente reduzir o tamanho do prompt ou o número de tokens solicitados.';
       debugInfo.suggestions = [
-        'Reduza o tamanho do prompt',
+        'Reduza o tamanho do prompt para menos de 1000 caracteres',
         'Divida a requisição em partes menores',
         'Use um modelo mais rápido como gpt-3.5-turbo',
-        'Reduza max_tokens para valor menor que 500'
+        'Reduza max_tokens para valor menor que 400'
       ];
     }
     
