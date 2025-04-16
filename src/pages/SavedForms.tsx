@@ -920,49 +920,66 @@ Evite a todo custo:
 
 Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.`;
       } else {
-        prompt = `Crie uma proposta comercial profissional e persuasiva baseada nos dados abaixo, incluindo:
+        prompt = `Crie uma proposta comercial estratégica completa, detalhada e altamente personalizada baseada nos dados abaixo. Sua proposta deve incluir:
 
 1. INTRODUÇÃO E CONTEXTO
-   - Apresentação personalizada com aspectos específicos do cliente
-   - Contextualização das necessidades identificadas
+   - Apresentação profissional da sua empresa/serviço com a proposta de valor exclusiva
+   - Resumo claro e detalhado da situação atual do cliente e seus desafios específicos
+   - Demonstração de compreensão profunda das necessidades e objetivos do cliente
 
-2. SOLUÇÃO PROPOSTA
-   - Descrição detalhada dos serviços e produtos oferecidos
-   - Benefícios claros e específicos para este cliente
-   - Diferenciação competitiva da solução
+2. ANÁLISE DA SITUAÇÃO
+   - Diagnóstico detalhado dos principais problemas e oportunidades identificados
+   - Análise do contexto de mercado relevante para este cliente específico
+   - Identificação de pontos críticos que serão resolvidos pela solução
 
-3. INVESTIMENTO E RETORNO
-   - Detalhamento de valores e planos apropriados
-   - Demonstração clara do retorno sobre investimento
-   - Vantagens exclusivas para o cliente
+3. SOLUÇÃO PROPOSTA
+   - Descrição detalhada e técnica dos produtos/serviços oferecidos
+   - Metodologia de trabalho com etapas claras e cronograma estimado
+   - Benefícios específicos e quantificáveis para este cliente em particular
+   - Diferenciais competitivos da sua solução em relação a alternativas do mercado
 
-4. PRÓXIMOS PASSOS
-   - Plano de implementação claro
-   - Cronograma sugerido
-   - Incentivo para ação imediata
+4. INVESTIMENTO E RETORNO
+   - Detalhamento completo dos planos e valores, com opções flexíveis quando aplicável
+   - Demonstração objetiva do retorno sobre investimento (ROI) esperado
+   - Política de garantias, termos e condições de pagamento
+   - Incentivos ou benefícios exclusivos para fechamento
+
+5. PRÓXIMOS PASSOS
+   - Processo de implementação detalhado com marcos e responsabilidades
+   - Cronograma preciso com datas e entregas específicas
+   - Requisitos para início do projeto e informações necessárias
+   - Call-to-action claro e persuasivo com prazo para aprovação
 
 Dados:
 ${extractedText}
 
-IMPORTANTE: Personalize completamente para as necessidades específicas do cliente.
-Destaque benefícios específicos, não apenas características genéricas.
-Seja persuasivo e orientado a resultados.
-Formato: HTML com títulos e subtítulos. Use tags <strong> para destacar texto em negrito, não use asteriscos (**) para formatação.`;
+IMPORTANTE: 
+- Personalize COMPLETAMENTE a proposta utilizando os dados fornecidos. Evite linguagem genérica.
+- Mencione especificamente os dados do cliente, incluindo nomes, números e informações concretas.
+- Seja extremamente detalhado nas especificações técnicas da solução.
+- Inclua valores e números reais sempre que possível, ou placeholders específicos quando necessário.
+- Destaque claramente o valor único que sua solução fornece para este cliente específico.
+- Use linguagem persuasiva e orientada a resultados.
 
-        systemRole = `Você é um especialista em desenvolvimento de negócios com vasta experiência em criar propostas comerciais personalizadas e altamente persuasivas.
+Formato: HTML com títulos (h1, h2, h3) e subtítulos. Use tags <strong> para destacar texto em negrito, <em> para itálico.`;
 
-Suas propostas devem ser:
-1. Completamente personalizadas para o cliente específico
-2. Focadas em benefícios e resultados, não apenas características
-3. Persuasivas e orientadas à ação
-4. Profissionais e bem estruturadas
+        systemRole = `Você é um consultor de negócios sênior especializado na elaboração de propostas comerciais de alto valor. Sua expertise está em criar documentos altamente personalizados, tecnicamente precisos e extremamente persuasivos.
+
+Suas propostas devem:
+1. Demonstrar profundo entendimento do cliente e seu mercado específico
+2. Apresentar soluções técnicas detalhadas com especificações claras
+3. Incluir análises de custo-benefício com números concretos e ROI estimado
+4. Utilizar linguagem profissional mas acessível, evitando jargões desnecessários
+5. Ter forte elemento persuasivo com foco em resultados tangíveis
 
 Evite a todo custo:
-- Linguagem genérica ou templates óbvios
-- Foco excessivo em características sem conexão com benefícios
-- Propostas que parecem ser aplicáveis a qualquer cliente
+- Linguagem vaga ou genérica que poderia se aplicar a qualquer cliente
+- Propostas que parecem "templates" ou textos padronizados
+- Foco em características sem conexão clara com benefícios específicos
+- Afirmações sem fundamento ou sem dados de suporte
+- Omissão de informações técnicas importantes ou detalhes de implementação
 
-Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou underlines.`;
+Use formatação HTML sofisticada para criar um documento visualmente profissional.`;
       }
 
       // Utilizando a API do OpenAI através do endpoint de proxy
@@ -1022,10 +1039,10 @@ Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou
           console.log("Iniciando fetch para", apiUrl);
           
           const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json"
-            },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
             body: JSON.stringify(payload),
             signal: controller.signal
           });
@@ -1054,7 +1071,7 @@ Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou
                 } catch (jsonError) {
                   errorMsg = `${response.status}: ${response.statusText} (Erro ao processar resposta JSON)`;
                 }
-              } else {
+        } else {
                 errorMsg = `${response.status}: ${response.statusText} (Resposta vazia)`;
               }
             } catch (textError) {
@@ -1190,7 +1207,7 @@ Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou
           generatedContent = generatedContent.replace(/<p><\/p>/g, '');
           
           // Aplicar estilos (usando uma classe em vez de inline style, para facilitar remoção ao criar PDF)
-          const styledContent = `
+        const styledContent = `
 <style id="document-styles">
   h1 { color: #4361ee; font-size: 28px; margin-bottom: 18px; }
   h2 { color: #3a0ca3; font-size: 22px; margin-top: 28px; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
@@ -1208,19 +1225,19 @@ Use sempre formatação HTML para destaque (strong, em), nunca use asteriscos ou
   h1 + p, h2 + p, h3 + p { margin-top: 0.5em; }
 </style>
 ${generatedContent}`;
-          
+        
           // Atualizar documento e mostrar sucesso
-          setDocumentContent(styledContent);
-          
-          toast({
+        setDocumentContent(styledContent);
+        
+        toast({
             title: docType === "report" || generationType === "relatorio" 
               ? "Análise gerada com sucesso!" 
               : "Proposta gerada com sucesso!",
             description: docType === "report" || generationType === "relatorio"
-              ? "Revise e personalize a análise conforme necessário."
-              : "Revise e personalize a proposta conforme necessário.",
-            variant: "default",
-          });
+            ? "Revise e personalize a análise conforme necessário."
+            : "Revise e personalize a proposta conforme necessário.",
+          variant: "default",
+        });
           
           // Sair do loop se tudo der certo
           return;
@@ -1263,7 +1280,7 @@ ${generatedContent}`;
       
       // Se chegou aqui, todas as tentativas falharam
       throw new Error(lastError?.message || "Falha na comunicação com a API após múltiplas tentativas");
-      
+
     } catch (error: any) {
       console.error("Erro na geração:", error);
       toast({
@@ -2053,6 +2070,11 @@ ${generatedContent}`;
                 <X className="h-4 w-4 mr-1" /> Fechar
               </Button>
             </div>
+          </div>
+          
+          {/* Aviso sobre a importância de detalhes no documento */}
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-3 mx-3 mt-2 text-sm text-amber-800">
+            <strong>Dica importante:</strong> Forneça o máximo de detalhes específicos no editor abaixo para obter uma proposta ou análise mais precisa e personalizada da IA.
           </div>
           
           {/* NOVA BARRA DE FERRAMENTAS DE FORMATAÇÃO */}
