@@ -1731,25 +1731,47 @@ ${generatedContent}`;
     <div className="container max-w-screen-xl mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Meus Formulários</h1>
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+          <div className="relative hidden sm:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400" />
+            <Input
+              type="search"
+              placeholder="Pesquisar formulário..."
+              className="pl-10 py-2 w-[200px] rounded-lg border-indigo-200 dark:border-indigo-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 dark:focus:ring-indigo-700 shadow-sm transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
           <Button 
-            onClick={() => setIsSegmentSelectorOpen(true)} // Alterado para abrir o seletor de tipos
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-5 h-auto text-base font-medium transition-all duration-300 hover:shadow-lg hover:shadow-indigo-200 dark:hover:shadow-indigo-900/30 hover:-translate-y-0.5 active:translate-y-0 group"
+            onClick={() => setIsSegmentSelectorOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 h-auto text-sm font-medium transition-all duration-300 hover:shadow-lg hover:shadow-indigo-200 dark:hover:shadow-indigo-900/30 hover:-translate-y-0.5 active:translate-y-0 group"
           >
-            <Plus className="mr-2 h-5 w-5 group-hover:rotate-90 transition-transform duration-300" /> 
+            <Plus className="mr-2 h-4 w-4 group-hover:rotate-90 transition-transform duration-300" /> 
             Criar Formulário
           </Button>
           <Button 
             variant="outline" 
             onClick={handleGerarComIA} 
-            className="gap-2 px-6 py-5 h-auto text-base font-medium border-2 border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/30 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 group"
+            className="gap-2 px-4 py-2 h-auto text-sm font-medium border-2 border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/30 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 group"
           >
-            <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400 group-hover:animate-pulse" /> 
+            <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 group-hover:animate-pulse" /> 
             Gerar com IA
           </Button>
         </div>
       </div>
       
+      {/* Campo de pesquisa visível apenas em dispositivos móveis */}
+      <div className="mb-6 sm:hidden relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-400" />
+        <Input
+          type="search"
+          placeholder="Pesquisar formulário..."
+          className="pl-10 py-2 w-full rounded-lg border-indigo-200 dark:border-indigo-800 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-300 dark:focus:ring-indigo-700 shadow-sm transition-all"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
       {/* Dialog para opções de Gerar com IA */}
       <Dialog open={isGenAIDialogOpen} onOpenChange={setIsGenAIDialogOpen}>
         <DialogContent className="sm:max-w-4xl p-0 overflow-hidden bg-gradient-to-b from-indigo-50 to-white dark:from-indigo-950 dark:to-gray-900 border-0 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -2530,7 +2552,7 @@ ${generatedContent}`;
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
-          {forms.map((form) => (
+          {filteredForms.map((form) => (
             <FormCard
               key={form.id}
               form={formatFormForComponents(form)}
@@ -2542,8 +2564,8 @@ ${generatedContent}`;
               className="min-w-[280px] min-h-[180px] p-5"
             />
           ))}
-              </div>
-            )}
-          </div>
+        </div>
+      )}
+    </div>
   );
 } 

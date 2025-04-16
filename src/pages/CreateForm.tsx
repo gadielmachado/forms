@@ -391,8 +391,9 @@ const CreateForm = () => {
     <div className="space-y-6">
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
+          {/* Header responsivo: em mobile fica com título e botões empilhados */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-4 space-y-4 sm:space-y-0">
+            <div className="flex items-center space-x-3 w-full sm:w-auto">
               <div className="bg-indigo-600 h-8 w-1 rounded-full"></div>
               <div className="flex-1">
                 <input
@@ -409,7 +410,8 @@ const CreateForm = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
+            {/* Botões empilhados em mobile, lado a lado em desktop */}
+            <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
               <Button
                 variant="outline"
                 className="flex items-center gap-2 border-gray-300 hover:bg-gray-50 hover:text-indigo-600 transition-colors"
@@ -443,13 +445,17 @@ const CreateForm = () => {
       </div>
 
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-6">
+        {/* Grid de 1 coluna em mobile, 2 colunas em desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Em mobile, os campos do formulário aparecem primeiro */}
           <FormFieldsList 
             fields={fields} 
             onFieldsChange={handleFieldsChange}
+            className="order-1"
           />
 
-          <div className="flex justify-center">
+          {/* Em mobile, o upload de imagem aparece abaixo dos campos */}
+          <div className="flex justify-center order-2">
             <ImageUpload 
               onImageUpload={setImageUrl}
               currentImageUrl={imageUrl}

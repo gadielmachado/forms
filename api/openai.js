@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
     // Obter API key
     const apiKey = process.env.OPENAI_API_KEY;
-
+    
     if (!apiKey) {
       console.error('[OpenAI] API key não encontrada');
       return res.status(500).json({ error: 'API key não configurada no servidor' });
